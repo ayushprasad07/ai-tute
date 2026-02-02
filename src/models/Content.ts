@@ -3,10 +3,10 @@ import User from "./User";
 
 interface IContent{
     userId : mongoose.Schema.Types.ObjectId;
-    type : String;
+    type : "youtube" | "pdf";
     title : String;
-    sourceUrl : String;
-    content : String;
+    sourceUrl ?: String;
+    content ?: String;
     status : string;
     createdAt : Date;
     updatedAt : Date;
@@ -29,11 +29,9 @@ const ContentSchema = new Schema<IContent>({
     },
     sourceUrl : {
         type : String,
-        required : true
     },
     content : {
         type : String,
-        required : true
     },
     status : {
         type : String,
