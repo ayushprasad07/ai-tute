@@ -3,7 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import bcrypt from "bcryptjs";
 
-export default async function POST(req : Request){
+export async function POST(req : Request){
     await dbConnect();
 
     try {

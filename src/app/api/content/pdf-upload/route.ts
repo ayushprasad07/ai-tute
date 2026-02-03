@@ -10,7 +10,7 @@ const uploadDir = path.join(process.cwd(),"uploads/pdfs");
 
 fs.ensureDirSync(uploadDir);
 
-export default async function POST(req : Request){
+export async function POST(req : Request){
     await dbConnect();
 
     const session = await getServerSession(authOptions);
