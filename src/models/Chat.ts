@@ -24,7 +24,8 @@ const ChatSchema = new Schema<IChat>({
         {
             role : {
                 type : String,
-                required : true
+                required : true,
+                enum : ["user","assistant"]
             },
             text : {
                 type : String,
