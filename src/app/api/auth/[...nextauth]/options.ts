@@ -17,6 +17,10 @@ export const authOptions : NextAuthOptions = {
             },
             async authorize(credentials : any) : Promise<any> {
                 await dbConnect();
+
+                // if(!credentials.identifier || !credentials.password){
+                //     throw new Error("All fields are required");
+                // }
                 try {
                     const user = await User.findOne({
                         $or:[

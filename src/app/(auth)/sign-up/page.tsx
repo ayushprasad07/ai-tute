@@ -1,28 +1,43 @@
 "use client";
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import {
-  IconBrandGithub,
-  IconBrandGoogle,
-  IconBrandOnlyfans,
-} from "@tabler/icons-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { NavbarDemo } from "@/components/Navbar";
 import Image from "next/image";
+import axios, { AxiosError } from "axios";
+import { toast } from "sonner";
+import { ApiResponse } from "@/types/ApiResponse";
+import { useRouter } from "next/navigation";
+import { Loader } from "lucide-react";
 
 export default function SignupForm() {
     const [credentials,setCredentials] = useState({username:"",email:"",password:""})
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const [submitting , setSubmitting] = useState(false)
+
+    const router = useRouter();
+  const handleSubmit = async(e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Form submitted",credentials);
+    setSubmitting(true);
+    try {
+        const response = await axios.post("/api/sign-up",credentials);
+        if(response.data.success){
+            toast.success(response.data.message);
+            router.push(`/verify-code/${credentials.username}`);
+        }
+    } catch (error) {
+        const axiosError = error as AxiosError<ApiResponse>;
+        toast.error(axiosError.response?.data.message ?? "Something went wrong");
+    }finally{
+        setSubmitting(false);
+    }
   };
 
   const handleInputChange = (e : React.ChangeEvent<HTMLInputElement>) => {
       setCredentials({...credentials,[e.target.name] : e.target.value})
   }
   return (
-    <div className="flex justify-center items-center min-h-screen w-full p-4">
+    <div className="flex justify-center items-center min-h-screen w-full p-4 dark:bg-gradient-to-br dark:from-gray-900 dark:to-black">
         <NavbarDemo/>
         <div className="shadow-lg mx-auto w-full max-w-md rounded-none bg-white p-4 md:rounded-2xl md:p-8 dark:bg-black">
             <div className="text-center w-full">
@@ -52,11 +67,19 @@ export default function SignupForm() {
                 
 
                 <button
-                className="group/btn relative block h-10 w-full rounded-md bg-gradient-to-br from-black to-neutral-600 font-medium text-white shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] dark:bg-zinc-800 dark:from-zinc-900 dark:to-zinc-900 dark:shadow-[0px_1px_0px_0px_#27272a_inset,0px_-1px_0px_0px_#27272a_inset]"
-                type="submit"
-                >
-                Sign up &rarr;
-                <BottomGradient />
+                    className="group/btn relative flex items-center justify-center h-10 w-full rounded-md bg-gradient-to-br from-black to-neutral-600 font-medium text-white shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] dark:bg-zinc-800 dark:from-zinc-900 dark:to-zinc-900 dark:shadow-[0px_1px_0px_0px_#27272a_inset,0px_-1px_0px_0px_#27272a_inset]"
+                    type="submit"
+                    disabled={submitting}
+                    >
+                    {submitting ? (
+                        <div className="flex items-center justify-center gap-2">
+                        <Loader className="animate-spin h-4 w-4" />
+                        <span>Signing up...</span>
+                        </div>
+                    ) : (
+                        <span>Sign up &rarr;</span>
+                    )}
+                    <BottomGradient />
                 </button>
             </form>
         </div>
