@@ -1,7 +1,10 @@
+// /api/content/fetch-all
 import dbConnect from "@/lib/dbConnect";
 import Content from "@/models/Content";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/options";
+import { authOptions } from "../../auth/[...nextauth]/options";
+import mongoose from "mongoose";
+
 
 export async function POST(req : Request){
     await dbConnect();
@@ -20,35 +23,29 @@ export async function POST(req : Request){
     const userId = session.user._id;
 
     try {
-        const {title , type} = await req.json();
 
-        if(!title || !type){
-            return Response.json({
-                success : false,
-                message : "All fields are required"
-            },{
-                status : 400
-            })
-        }
-
-        const content = await Content.create({
-            userId,
-            title,
-            type,
-            status : "processing"
+        const contents = await Content.find({
+            userId : new mongoose.Types.ObjectId(userId)
         });
 
+        if(!contents){
+            return Response.json({
+                success : false,
+                message : "No contents found"
+            },{
+                status : 404
+            })
+        }
+        
         return Response.json({
             success : true,
-            message : "Content created successfully",
-            content :{
-                _id : content._id,
-            }
+            message : "Contents fetched successfully",
+            contents
         },{
             status : 200
         })
     } catch (error) {
-        console.log("Internal server error",error);
+        console.log("Internal server error : ",error);
         return Response.json({
             success : false,
             message : "Internal server error"

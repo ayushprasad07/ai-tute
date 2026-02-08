@@ -1,3 +1,4 @@
+// /api/content/generate-summary
 import dbConnect from "@/lib/dbConnect";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/options";
