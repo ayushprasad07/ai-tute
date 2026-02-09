@@ -50,15 +50,15 @@ export async function POST(req : Request){
             })
         }
 
-        if(content.status === "ready" && content.content){
-            return Response.json({
-                success : false,
-                message : "Content already generated summary",
-                content : content.content
-            },{
-                status : 400
-            })
-        }
+        // if(content.status === "ready" && content.content){
+        //     return Response.json({
+        //         success : false,
+        //         message : "Content already generated summary",
+        //         content : content.content
+        //     },{
+        //         status : 400
+        //     })
+        // }
 
         const summary = await generateSummaryForContent(contentId);
 

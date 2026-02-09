@@ -10,6 +10,9 @@ export default async function generateSummaryForContent(contentId : string){
         return "No Content was found"
     }
 
+    console.log("🔥 Chunks from vector search:", chunk);
+
+
     const context = chunk.join("\n\n");
 
     const prompt = `

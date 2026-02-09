@@ -1,15 +1,12 @@
-import fs from "fs-extra";
-import {PDFParse}  from "pdf-parse";
+import fs from "fs";
+
+// 🔥 bypass pdf-parse index.js debug code
+const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 
 export async function extractText(filePath: string): Promise<string> {
   try {
-    const fileBuffer = await fs.readFile(filePath);
-    const unaryPath = new Uint8Array(fileBuffer);
-    const pdf = new PDFParse(unaryPath);
-    const data = await pdf.getText();
-
-    await pdf.destroy();
-
+    const buffer = fs.readFileSync(filePath);
+    const data = await pdfParse(buffer);
     return data.text;
   } catch (error) {
     console.error(error);

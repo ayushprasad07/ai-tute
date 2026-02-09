@@ -13,7 +13,6 @@ export default async function generateSummary(
         model: "gemini-2.5-flash",
         contents: prompt,
         config:{
-            stopSequences: ["\n\n"],
             temperature: 0.5,
         }
     });
