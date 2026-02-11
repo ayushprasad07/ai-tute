@@ -4,6 +4,89 @@ import { BackgroundLines } from "@/components/ui/background-lines";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { useState, useEffect } from "react";
+import { Globe3D, GlobeMarker } from "@/components/ui/3d-globe";
+
+const sampleMarkers: GlobeMarker[] = [
+  {
+    lat: 40.7128,
+    lng: -74.006,
+    src: "https://assets.aceternity.com/avatars/1.webp",
+    label: "New York",
+  },
+  {
+    lat: 51.5074,
+    lng: -0.1278,
+    src: "https://assets.aceternity.com/avatars/2.webp",
+    label: "London",
+  },
+  {
+    lat: 35.6762,
+    lng: 139.6503,
+    src: "https://assets.aceternity.com/avatars/3.webp",
+    label: "Tokyo",
+  },
+  {
+    lat: -33.8688,
+    lng: 151.2093,
+    src: "https://assets.aceternity.com/avatars/4.webp",
+    label: "Sydney",
+  },
+  {
+    lat: 48.8566,
+    lng: 2.3522,
+    src: "https://assets.aceternity.com/avatars/5.webp",
+    label: "Paris",
+  },
+  {
+    lat: 28.6139,
+    lng: 77.209,
+    src: "https://assets.aceternity.com/avatars/6.webp",
+    label: "New Delhi",
+  },
+  {
+    lat: 55.7558,
+    lng: 37.6173,
+    src: "https://assets.aceternity.com/avatars/7.webp",
+    label: "Moscow",
+  },
+  {
+    lat: -22.9068,
+    lng: -43.1729,
+    src: "https://assets.aceternity.com/avatars/8.webp",
+    label: "Rio de Janeiro",
+  },
+  {
+    lat: 31.2304,
+    lng: 121.4737,
+    src: "https://assets.aceternity.com/avatars/9.webp",
+    label: "Shanghai",
+  },
+  {
+    lat: 25.2048,
+    lng: 55.2708,
+    src: "https://assets.aceternity.com/avatars/10.webp",
+    label: "Dubai",
+  },
+  {
+    lat: -34.6037,
+    lng: -58.3816,
+    src: "https://assets.aceternity.com/avatars/11.webp",
+    label: "Buenos Aires",
+  },
+  {
+    lat: 1.3521,
+    lng: 103.8198,
+    src: "https://assets.aceternity.com/avatars/12.webp",
+    label: "Singapore",
+  },
+  {
+    lat: 37.5665,
+    lng: 126.978,
+    src: "https://assets.aceternity.com/avatars/13.webp",
+    label: "Seoul",
+  },
+];
+ 
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
@@ -24,31 +107,44 @@ export default function Home() {
       <NavbarDemo/>
 
       {/* Hero Section */}
-      <BackgroundLines className="flex justify-center items-center min-h-screen w-full">
-        <div className="container mx-auto px-6 text-center relative z-10">
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 animate-fade-up animate-once animate-duration-700">
-            Turn Any Content Into{" "}
-            <span className="bg-gradient-to-r from-[#03045e] to-[#0096c7] bg-clip-text text-transparent">
-              Smart Learning
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 mb-10 max-w-3xl mx-auto animate-fade-up animate-once animate-duration-700 animate-delay-100">
-            Upload PDFs or YouTube videos → get AI summaries, chat help, and quizzes. 
-            Your personal AI tutor transforms passive content into active learning.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-up animate-once animate-duration-700 animate-delay-200">
-            <button 
-              onClick={() => redirect("/dashboard")} 
-              className="px-8 py-4 bg-gradient-to-r from-[#03045e] to-[#0096c7] rounded-xl text-lg font-semibold text-white transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-400/50 dark:hover:shadow-blue-500/30"
-            >
-              Start Learning Free
-            </button>
-            <button className="px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 hover:scale-105 border border-blue-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-white/5 text-blue-700 dark:text-white">
-              See How It Works →
-            </button>
-          </div>
-        </div>
-      </BackgroundLines>
+      <div className="relative mx-auto flex min-h-[40rem] w-full items-center overflow-hidden rounded-xl bg-white   dark:bg-neutral-950">
+  
+  {/* Text Section */}
+  <div className="relative z-10 p-6 md:p-12 flex flex-col justify-center max-w-2xl">
+    <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-neutral-900 md:text-5xl lg:text-6xl dark:text-white">
+      Turn Any PDF or Video into Smart Study Notes.
+    </h2>
+
+    <p className="mt-2 text-neutral-600 md:mt-6 md:text-lg dark:text-neutral-400">
+      Upload, summarize, ask doubts, and generate quizzes — all powered by AI.
+    </p>
+
+    <div className="mt-6 flex gap-4 md:mt-8">
+      <button className="flex cursor-pointer items-center justify-center rounded-lg bg-neutral-900 px-4 py-2 font-medium text-white shadow-[0px_0px_10px_0px_rgba(255,255,255,0.2)_inset] ring ring-white/20 ring-offset-2 ring-offset-neutral-900 transition-all duration-200 ring-inset hover:shadow-[0px_0px_20px_0px_rgba(255,255,255,0.4)_inset] hover:ring-white/40 active:scale-95">
+        Get Started
+      </button>
+
+      <button className="flex cursor-pointer items-center justify-center rounded-lg bg-white px-4 py-2 font-medium text-neutral-900 ring ring-neutral-200 transition-all duration-200 ring-inset hover:bg-neutral-50 hover:ring-neutral-300 active:scale-95">
+        Learn More
+      </button>
+    </div>
+  </div>
+
+  {/* Globe container */}
+  <div className="absolute -right-80 -bottom-96 z-10 size-160 md:-bottom-80 md:size-180">
+    <Globe3D
+      className="h-full w-full"
+      config={{
+        atmosphereColor: "#4da6ff",
+        atmosphereIntensity: 20,
+        bumpScale: 5,
+        autoRotateSpeed: 0.3,
+      }}
+    />
+  </div>
+
+</div>
+
 
       {/* Features Section */}
       <section id="features" className="py-20">
