@@ -1,11 +1,13 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/options";
+import { authOptions } from "../../../auth/[...nextauth]/options";
 import dbConnect from "@/lib/dbConnect";
 import Content from "@/models/Content";
 import mongoose from "mongoose";
 import Chat from "@/models/Chat";
 
-export async function GET( req : Request){ 
+export async function GET( req : Request,
+    {params} : {params : Promise<{contentId : string}>}
+){ 
     await dbConnect();
 
     const session = await getServerSession(authOptions);
@@ -22,7 +24,7 @@ export async function GET( req : Request){
     const userId = session.user._id;
 
     try {
-        const {contentId} = await req.json();
+        const {contentId} = await params;
 
         if(!contentId){
             return Response.json({
@@ -54,6 +56,8 @@ export async function GET( req : Request){
             }
         })
 
+        const messages = chats.flatMap(chat => chat.messages);
+
         if(!chats){
             return Response.json({
                 success : false,
@@ -66,7 +70,7 @@ export async function GET( req : Request){
         return Response.json({
             success : true,
             message : "Chats fetched successfully",
-            data : chats
+            data : messages
         },{
             status : 200
         })

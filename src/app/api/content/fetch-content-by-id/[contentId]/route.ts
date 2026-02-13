@@ -48,7 +48,7 @@ export async function GET(
         success: true,
         content:{
             title : content.title,
-            url : content.sourceUrl.split('/')[2],
+            url : content.sourceUrl.split('/')[3],
             summary : content.content,
             status : content.status,
             type : content.type

@@ -557,13 +557,15 @@
 
 "use client"
 
+import Chat from '@/components/Chat';
 import { BackgroundRippleEffect } from '@/components/ui/background-ripple-effect';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { FileUpload } from '@/components/ui/file-upload';
 import { ApiResponse } from '@/types/ApiResponse';
 import axios, { AxiosError } from 'axios';
 import { useParams } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner';
 
 const Content = () => {
@@ -610,7 +612,7 @@ const Content = () => {
 
       if(summaryRes.data.success){
         setSummary(summaryRes.data.content);
-        setHasContent(true); // 👈 switch UI automatically
+        setHasContent(true); 
       }
 
     } catch (error) {
@@ -648,13 +650,21 @@ const Content = () => {
   }
 
   return hasContent ? (
-    <div className="w-full max-w-4xl mx-auto m-4 p-6 border rounded-lg">
-      <div className='h-[20rem] relative'>
-      <BackgroundRippleEffect/>
+    <div className='grid p-4 gap-4 grid-cols-1 md:grid-cols-2'>
+      <div className="w-full max-w-4xl mx-auto m-4 p-6 border rounded-lg">
+        <div className='h-[20rem] relative flex items-center justify-center'>
+        <BackgroundRippleEffect/>
+        <Card className='shadow-lg border p-4 z-10'>
+          <p>{content.url}</p>
+        </Card>
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Summary</h2>
+          <p>{summary}</p>
+        </div>
       </div>
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Summary</h2>
-        <p>{summary}</p>
+      <div className='p-2'>
+        <Chat contentId={params.contentId as string}/>
       </div>
     </div>
   ) : (

@@ -35,6 +35,17 @@ export async function POST(req : Request){
             })
         }
 
+        if (typeof question !== "string") {
+            return Response.json(
+                {
+                success: false,
+                message: "Question must be a string"
+                },
+                { status: 400 }
+            );
+        }
+
+
         const content = await Content.findOne({
             _id : new mongoose.Types.ObjectId(contentId),
             userId 
@@ -51,25 +62,31 @@ export async function POST(req : Request){
 
         const answer = await generateChatAnswer(contentId, question);
 
-        const chat = await Chat.findOneAndUpdate({
-            contentId : new mongoose.Types.ObjectId(contentId),
-        },{
-            messages : [
-                {
-                    role : "user",
-                    text : question
-                },
-                {
-                    role : "assistant",
-                    text : answer
+        const chat = await Chat.findOneAndUpdate(
+            {
+                contentId: new mongoose.Types.ObjectId(contentId),
+            },
+            {
+                $push: {
+                messages: {
+                    $each: [
+                    { role: "user", text: question },
+                    { role: "assistant", text: answer }
+                    ]
                 }
-            ]
-        })
+                }
+            },
+            {
+                new: true,
+                upsert: true, 
+            }
+        );
+
 
         return Response.json({
             success : true,
             message : "Chat updated successfully",
-            data : chat
+            answer
         },{
             status : 200
         })
