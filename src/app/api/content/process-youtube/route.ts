@@ -9,6 +9,7 @@ import { extractTranscript } from "@/lib/youtube/extractTranscript";
 import cleanText from "@/lib/pdf/cleanText";
 import chunkText from "@/lib/pdf/chunkText";
 import { embedAndStore } from "@/lib/vector/embedAndStore";
+import { localWhisperTranscribe } from "@/lib/youtube/localWhisper";
 
 
 export async function POST(req:Request) {
@@ -27,9 +28,9 @@ export async function POST(req:Request) {
 
     const userId = session.user._id;
 
-    const {contentId} = await req.json();
+    const {contentId, sourceUrl} = await req.json();
 
-    if(!contentId){
+    if(!contentId || !sourceUrl){
         return Response.json({
             success : false,
             message : "Please provide content"
@@ -45,7 +46,7 @@ export async function POST(req:Request) {
             type : "youtube"
         });
 
-        if(!content || !content.sourceUrl){
+        if(!content ){
             return Response.json({
                 success : false,
                 message : "Content not found"
@@ -54,7 +55,29 @@ export async function POST(req:Request) {
             })
         }
 
-        const transcript = await extractTranscript(content.sourceUrl);
+        let transcript : string = "";
+
+        try {
+            console.log("🎬 Trying transcript API...");
+            transcript = await extractTranscript(sourceUrl);
+        } catch {
+            console.log("⚠️ Transcript API failed — using LOCAL WHISPER");
+
+            transcript = await localWhisperTranscribe(sourceUrl);
+        }
+
+        if (!transcript || transcript.length < 50) {
+        throw new Error("Transcript generation failed");
+        }
+
+        if(!transcript){
+            return Response.json({
+                success : false,
+                message : "Transcript not found"
+            },{
+                status : 400
+            })
+        }
 
         const cleanedText = await cleanText(transcript);
         const chunked =  chunkText(cleanedText,500,100);

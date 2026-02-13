@@ -36,7 +36,7 @@ export async function GET(
       userId,
     });
 
-    if (!content || content.length ===0) {
+    if (!content) {
       return Response.json(
         { success: true, content :{} },
         { status: 200 }
@@ -48,7 +48,10 @@ export async function GET(
         success: true,
         content:{
             title : content.title,
-            url : content.sourceUrl.split('/')[3],
+            url:
+              content.type === "youtube"
+                ? content.sourceUrl?.split("/")?.[3] ?? ""
+                : content.sourceUrl ?? "",
             summary : content.content,
             status : content.status,
             type : content.type
