@@ -86,7 +86,7 @@ export async function POST(req : Request){
         return Response.json({
             success : true,
             message : "Chat updated successfully",
-            answer
+            // answer
         },{
             status : 200
         })

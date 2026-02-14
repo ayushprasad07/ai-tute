@@ -50,8 +50,8 @@ export async function GET(
             title : content.title,
             url:
               content.type === "youtube"
-                ? content.sourceUrl?.split("/")?.[3] ?? ""
-                : content.sourceUrl ?? "",
+                ? extractVideoId(content.sourceUrl)
+                : content.sourceUrl?.split("/")?.[3] ?? "",
             summary : content.content,
             status : content.status,
             type : content.type
@@ -68,3 +68,14 @@ export async function GET(
     );
   }
 }
+
+function extractVideoId(url: string): string {
+  if (!url) return "";
+
+  const match = url.match(
+    /(?:v=|youtu\.be\/|embed\/)([0-9A-Za-z_-]{11})/
+  );
+
+  return match?.[1] ?? "";
+}
+

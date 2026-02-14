@@ -84,16 +84,28 @@ export async function POST(req:Request) {
 
         await embedAndStore(chunked, contentId);
 
-        await Content.findOneAndUpdate({
-            _id : new mongoose.Types.ObjectId(contentId),
+        await Content.findOneAndUpdate(
+        {
+            _id: new mongoose.Types.ObjectId(contentId),
             userId,
-            type : "youtube",
-            status : "processing"
+            type: "youtube",
+        },
+        {
+            $set: {
+            status: "processing",
+            sourceUrl: sourceUrl,
+            },
+        },
+        {
+            new: true,
+        }
+        );
 
-        })
         return Response.json({
             success : true,
             message : "Content processed successfully"
+        },{
+            status : 200
         })
         
     } catch (error) {

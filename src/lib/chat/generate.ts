@@ -17,7 +17,7 @@ export async function generateChatAnswer(
     const prompt = `
         You are an AI tutor.
 
-        Answer the user's question strictly using the provided content and provide a little more information releated to the content.
+        Answer the user's question strictly using the provided content and provide a little more information releated to the content and if teh content is in hindi then convert it to english.
         If the answer is not present, say "The provided content does not contain this information." and then give some additional information
 
         Content:
