@@ -89,9 +89,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { formatDistanceToNow, format } from "date-fns"
-import { motion, AnimatePresence } from "framer-motion"
-import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { motion } from "framer-motion"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -521,13 +519,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-neutral-950 dark:via-blue-950/10 dark:to-neutral-950">
-      {/* Animated background */}
-      {/* <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000" />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000" />
-      </div> */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-neutral-950 dark:via-blue-950/10 dark:to-neutral-950 overflow-hidden">
 
       <div className="container mx-auto px-4 py-8 max-w-7xl relative z-10">
         {/* Header Section */}
@@ -1057,11 +1049,6 @@ const Dashboard = () => {
                           <span className="font-medium">{contentOverview?.processing || 0}</span>
                         </div>
                       </div>
-                      
-                      <Badge variant="outline" className="gap-1">
-                        <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                        {Math.round((contentOverview?.ready || 0) / (contentOverview?.totalContents || 1) * 100)}% Success Rate
-                      </Badge>
                     </div>
                   </div>
                 </>
@@ -1102,25 +1089,6 @@ const Dashboard = () => {
           </Card>
         </motion.div>
       </div>
-
-      {/* Add custom CSS for animations */}
-      <style jsx global>{`
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
     </div>
   )
 }

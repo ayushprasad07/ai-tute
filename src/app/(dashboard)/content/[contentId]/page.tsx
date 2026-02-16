@@ -29,6 +29,9 @@ import {
   ExternalLink,
   Loader2,
   MessageSquare,
+  Sparkles,
+  BookOpen,
+  GraduationCap,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -168,6 +171,7 @@ const Content = () => {
   const hasSummary = !!(content?.summary || summary);
   const url = content?.url;
   const thumbnailUrl = isYoutube ? `https://img.youtube.com/vi/${url}/maxresdefault.jpg` : "";
+  const title = content?.title || "Content Studio";
 
   // Custom components for markdown rendering
   const MarkdownComponents = {
@@ -213,7 +217,25 @@ const Content = () => {
   return hasSummary ? (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       <div className="container mx-auto p-4 max-w-7xl">
-        
+        {/* Hero Title Section */}
+        <div className="mb-8 text-center">
+          <h1 className="text-5xl md:text-6xl font-bold mb-4">
+            <span className="bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 bg-clip-text text-transparent">
+              {title}
+            </span>
+          </h1>
+          
+          <div className="flex items-center justify-center gap-2 text-neutral-600 dark:text-neutral-400">
+            <GraduationCap className="h-4 w-4" />
+            <span className="text-sm">Interactive Learning Experience</span>
+            <BookOpen className="h-4 w-4 ml-2" />
+            <span className="text-sm">AI-Generated Summary</span>
+          </div>
+          
+          <div className="mt-4 flex justify-center">
+            <div className="w-24 h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-transparent rounded-full"></div>
+          </div>
+        </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -309,6 +331,24 @@ const Content = () => {
   ) : isYoutube ? (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       <div className="container mx-auto p-4 max-w-2xl">
+        {/* Title Section */}
+        <div className="text-center mb-8">
+          
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            <span className="bg-gradient-to-r from-red-600 to-red-400 bg-clip-text text-transparent">
+              {title}
+            </span>
+          </h1>
+          
+          <p className="text-neutral-600 dark:text-neutral-400 max-w-lg mx-auto">
+            Transform your YouTube video into an interactive learning experience with AI-powered summaries
+          </p>
+          
+          <div className="mt-4 flex justify-center">
+            <div className="w-24 h-1 bg-gradient-to-r from-red-600 via-red-400 to-transparent rounded-full"></div>
+          </div>
+        </div>
+
         <Card className="bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm border-neutral-200 dark:border-neutral-800">
           <CardHeader>
             <CardTitle>Add YouTube Video</CardTitle>
@@ -353,6 +393,24 @@ const Content = () => {
   ) : (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
       <div className="container mx-auto p-4 max-w-2xl">
+        {/* Title Section */}
+        <div className="text-center mb-8">
+          
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            <span className="bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 bg-clip-text text-transparent">
+              {title}
+            </span>
+          </h1>
+          
+          <p className="text-neutral-600 dark:text-neutral-400 max-w-lg mx-auto">
+            Upload your PDF and let AI create comprehensive summaries for enhanced learning
+          </p>
+          
+          <div className="mt-4 flex justify-center">
+            <div className="w-24 h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-transparent rounded-full"></div>
+          </div>
+        </div>
+
         <Card className="bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm border-neutral-200 dark:border-neutral-800">
           <CardHeader>
             <CardTitle>Upload PDF</CardTitle>

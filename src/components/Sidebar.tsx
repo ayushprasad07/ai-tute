@@ -6,6 +6,7 @@ import {
   IconLogout,
   IconSun,
   IconFileText,
+  IconTrash,
 } from "@tabler/icons-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -13,15 +14,33 @@ import ThemeToggle from "./ToggleTheme";
 import Link from "next/link";
 import Image from "next/image";
 import axios from "axios";
-import { Loader } from "lucide-react";
-
+import { Loader, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useRouter } from "next/navigation";
 
 type ContentType = {
   _id: string;
   title: string;
 };
 
+// Helper function to truncate title
+const truncateTitle = (title: string, maxLength: number = 50) => {
+  if (title.length <= maxLength) return title;
+  return title.substring(0, maxLength) + "...";
+};
+
 export default function SideBar({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const links = [
     {
       label: "Dashboard",
@@ -35,6 +54,9 @@ export default function SideBar({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [contents, setContents] = useState<ContentType[]>([]);
   const [loadingContents, setLoadingContents] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [contentToDelete, setContentToDelete] = useState<ContentType | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchContents = async () => {
@@ -54,107 +76,200 @@ export default function SideBar({ children }: { children: React.ReactNode }) {
     fetchContents();
   }, []);
 
+  const handleDeleteClick = (e: React.MouseEvent, content: ContentType) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContentToDelete(content);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!contentToDelete) return;
+
+    setDeletingId(contentToDelete._id);
+    try {
+      const response = await axios.delete(`/api/content/delete-content-id/${contentToDelete._id}`);
+
+      if (response.data.success) {
+        toast.success(response.data.message || "Content deleted successfully");
+        setContents(contents.filter(c => c._id !== contentToDelete._id));
+        
+        // Redirect to dashboard after successful deletion
+        router.push("/dashboard");
+      }
+    } catch (error) {
+      toast.error("Failed to delete content");
+      console.error("Delete error:", error);
+    } finally {
+      setDeletingId(null);
+      setDeleteDialogOpen(false);
+      setContentToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setContentToDelete(null);
+  };
+
   const handleLogout = () => {
     signOut({ callbackUrl: "/sign-in" });
   };
 
   return (
-    <div
-      className={cn(
-        "mx-auto flex w-full flex-1 flex-col overflow-hidden border bg-gray-100 md:flex-row dark:bg-neutral-800",
-        "h-[100vh]"
-      )}
-    >
-      <Sidebar open={open} setOpen={setOpen}>
-        <SidebarBody className="justify-between gap-10">
-          <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto gap-y-5">
-            <Logo small={!open} />
+    <>
+      <div
+        className={cn(
+          "mx-auto flex w-full flex-1 flex-col overflow-hidden border bg-gray-100 md:flex-row dark:bg-neutral-800",
+          "h-[100vh]"
+        )}
+      >
+        <Sidebar open={open} setOpen={setOpen}>
+          <SidebarBody className="justify-between gap-10">
+            <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto gap-y-5">
+              <Logo small={!open} />
 
-            <div className="mt-8 flex flex-col gap-2">
-              {links.map((link, idx) => (
-                <SidebarLink key={idx} link={link} />
-              ))}
-            </div>
-
-            <div className="mt-6 overflow-y-scroll">
-              {open && (
-                <p className="px-3 text-xs font-semibold uppercase text-neutral-500 dark:text-neutral-400">
-                  Contents
-                </p>
-              )}
-
-              <div className="mt-2 flex flex-col gap-1">
-                {loadingContents && open && (
-                  <span className="px-3 text-xs text-neutral-400">
-                    <Loader className="mr-2 h-4 w-4 animate-spin"></Loader>Loading...
-                  </span>
-                )}
-
-                {contents.map((content) => (
-                  <Link
-                    key={content._id}
-                    href={`/content/${content._id}`}
-                    className={cn(
-                      "flex items-center rounded-lg px-3 py-2 text-sm transition-all",
-                      "hover:bg-neutral-200 dark:hover:bg-neutral-700",
-                      open ? "gap-3 justify-start" : "justify-center"
-                    )}
-                  >
-                    <IconFileText className="h-4 w-4 shrink-0 text-neutral-600 dark:text-neutral-300" />
-
-                    {open && (
-                      <span className="truncate text-neutral-700 dark:text-neutral-200">
-                        {content.title}
-                      </span>
-                    )}
-                  </Link>
+              <div className="mt-8 flex flex-col gap-2">
+                {links.map((link, idx) => (
+                  <SidebarLink key={idx} link={link} />
                 ))}
               </div>
-            </div>
-          </div>
 
-          <div className="border-t border-gray-200 dark:border-neutral-700 px-3 py-4">
-            {/* Theme Toggle */}
-            <div className="mb-4">
-              {open ? (
-                <div className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-100 dark:bg-neutral-800">
-                      <IconSun className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Theme
+              <div className="mt-6 overflow-y-scroll">
+                {open && (
+                  <p className="px-3 text-xs font-semibold uppercase text-neutral-500 dark:text-neutral-400">
+                    Contents
+                  </p>
+                )}
+
+                <div className="mt-2 flex flex-col gap-1">
+                  {loadingContents && open && (
+                    <span className="px-3 text-xs text-neutral-400 flex items-center">
+                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+                      Loading...
                     </span>
-                  </div>
-                  <ThemeToggle />
+                  )}
+
+                  {contents.map((content) => (
+                    <div
+                      key={content._id}
+                      className="group relative flex items-center pr-2"
+                    >
+                      <Link
+                        href={`/content/${content._id}`}
+                        className={cn(
+                          "flex-1 flex items-center rounded-lg px-3 py-2 text-sm transition-all",
+                          "hover:bg-neutral-200 dark:hover:bg-neutral-700",
+                          open ? "gap-3 justify-start" : "justify-center"
+                        )}
+                      >
+                        <IconFileText className="h-4 w-4 shrink-0 text-neutral-600 dark:text-neutral-300" />
+
+                        {open && (
+                          <span className="truncate text-neutral-700 dark:text-neutral-200 max-w-[150px]" title={content.title}>
+                            {truncateTitle(content.title, 35)}
+                          </span>
+                        )}
+                      </Link>
+
+                      {/* Delete Button - Always visible when sidebar is open */}
+                      {open && (
+                        <button
+                          onClick={(e) => handleDeleteClick(e, content)}
+                          disabled={deletingId === content._id}
+                          className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-900/50 disabled:opacity-50 transition-all flex-shrink-0"
+                          title="Delete content"
+                        >
+                          {deletingId === content._id ? (
+                            <Loader className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  {contents.length === 0 && !loadingContents && open && (
+                    <p className="px-3 text-xs text-neutral-400 italic">
+                      No contents yet
+                    </p>
+                  )}
                 </div>
-              ) : (
-                <div className="flex justify-center">
-                  <ThemeToggle />
-                </div>
-              )}
+              </div>
             </div>
 
-            <button
-              onClick={handleLogout}
-              className={cn(
-                "flex items-center w-full rounded-lg px-3 py-2.5 text-sm cursor-pointer font-medium transition-all",
-                "text-red-600 hover:bg-red-50 hover:text-red-700",
-                "dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300",
-                open ? "justify-start gap-3" : "justify-center"
-              )}
-            >
-              <IconLogout className="h-5 w-5 shrink-0" />
-              {open && <span>Sign Out</span>}
-            </button>
-          </div>
-        </SidebarBody>
-      </Sidebar>
+            <div className="border-t border-gray-200 dark:border-neutral-700 px-3 py-4">
+              {/* Theme Toggle */}
+              <div className="mb-4">
+                {open ? (
+                  <div className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-100 dark:bg-neutral-800">
+                        <IconSun className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Theme
+                      </span>
+                    </div>
+                    <ThemeToggle />
+                  </div>
+                ) : (
+                  <div className="flex justify-center">
+                    <ThemeToggle />
+                  </div>
+                )}
+              </div>
 
-      <div className="flex-1 overflow-y-auto bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
-        {children}
+              <button
+                onClick={handleLogout}
+                className={cn(
+                  "flex items-center w-full rounded-lg px-3 py-2.5 text-sm cursor-pointer font-medium transition-all",
+                  "text-red-600 hover:bg-red-50 hover:text-red-700",
+                  "dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300",
+                  open ? "justify-start gap-3" : "justify-center"
+                )}
+              >
+                <IconLogout className="h-5 w-5 shrink-0" />
+                {open && <span>Sign Out</span>}
+              </button>
+            </div>
+          </SidebarBody>
+        </Sidebar>
+
+        <div className="flex-1 overflow-y-auto bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
+          {children}
+        </div>
       </div>
-    </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+              Delete Content
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-neutral-600 dark:text-neutral-400">
+              Are you sure you want to delete "{contentToDelete?.title && truncateTitle(contentToDelete.title, 50)}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={handleDeleteCancel}
+              className="border-neutral-200 dark:border-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700 text-white border-0 focus:ring-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
