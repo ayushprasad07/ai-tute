@@ -23,11 +23,7 @@ export function NavbarDemo() {
     {
       name: "Dashboard",
       link: "/dashboard",
-    },
-    // {
-    //   name: "Contact",
-    //   link: "#contact",
-    // },
+    }
   ];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -81,7 +77,7 @@ export function NavbarDemo() {
             <div className="flex w-full flex-col gap-4">
               <ThemeToggle/>
               <NavbarButton
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={() => {setIsMobileMenuOpen(false); handleRedirect(); }}
                 variant="primary"
                 className="w-full"
               >
@@ -89,7 +85,7 @@ export function NavbarDemo() {
               </NavbarButton>
 
               <NavbarButton
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={() => {  setIsMobileMenuOpen(false); handleSignup(); }}
                 variant="primary"
                 className="w-full"
               >
