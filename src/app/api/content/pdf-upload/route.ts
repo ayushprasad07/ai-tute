@@ -1,9 +1,8 @@
 import dbConnect from "@/lib/dbConnect";
 import { getServerSession } from "next-auth";
 import Content from "@/models/Content";
-import fs from "fs-extra";
-import path from "path";
 import { authOptions } from "../../auth/[...nextauth]/options";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   await dbConnect();
@@ -55,15 +54,31 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uploadDir = path.join(process.cwd(), "uploads/pdfs");
-    await fs.ensureDir(uploadDir);
-
     const fileName = `${Date.now()}-${(file as File).name}`;
-    const filePath = path.join(uploadDir, fileName);
 
-    await fs.writeFile(filePath, buffer);
+    const {error} = await supabase.storage
+      .from("pdfs")
+      .upload(fileName, buffer, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType : "application/pdf",
+      });
 
-    content.sourceUrl = `/uploads/pdfs/${fileName}`;
+    if (error) {
+      console.log(error);
+      return Response.json(
+        { success: false, message: "Internal server error" },
+        { status: 500 }
+      );
+    }
+
+    const {data} = supabase.storage
+      .from("pdfs")
+      .getPublicUrl(fileName);
+
+    const pdfUrl = data.publicUrl;
+
+    content.sourceUrl = pdfUrl;
     content.status = "processing";
 
     await content.save();
