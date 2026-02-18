@@ -248,6 +248,18 @@ export const NavbarLogo = () => {
   );
 };
 
+interface NavbarButtonProps {
+  href?: string;
+  as?: React.ElementType;
+  children: React.ReactNode;
+  className?: string;
+  variant?: "primary" | "secondary" | "dark" | "gradient";
+}
+
+type ButtonProps = 
+  | (React.ComponentPropsWithoutRef<"a"> & { as?: "a" })
+  | (React.ComponentPropsWithoutRef<"button"> & { as?: "button" });
+
 export const NavbarButton = ({
   href,
   as: Tag = "a",
@@ -255,16 +267,7 @@ export const NavbarButton = ({
   className,
   variant = "primary",
   ...props
-}: {
-  href?: string;
-  as?: React.ElementType;
-  children: React.ReactNode;
-  className?: string;
-  variant?: "primary" | "secondary" | "dark" | "gradient";
-} & (
-  | React.ComponentPropsWithoutRef<"a">
-  | React.ComponentPropsWithoutRef<"button">
-)) => {
+}: NavbarButtonProps & ButtonProps) => {
   const baseStyles =
     "px-4 py-2 rounded-md bg-white button bg-white text-black text-sm font-bold relative cursor-pointer hover:-translate-y-0.5 transition duration-200 inline-block text-center";
 

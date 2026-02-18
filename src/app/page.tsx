@@ -2,94 +2,256 @@
 import { NavbarDemo } from "@/components/Navbar";
 import { BackgroundLines } from "@/components/ui/background-lines";
 import Image from "next/image";
-import { redirect } from "next/navigation";
+import {  useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Globe3D, GlobeMarker } from "@/components/ui/3d-globe";
+import { Globe3D } from "@/components/ui/3d-globe";
+import { Button } from "@/components/ui/button"
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+} from "recharts"
+import { 
+  FileText, 
+  Youtube, 
+  Loader2, 
+  Clock, 
+  CheckCircle, 
+  XCircle,
+  MessageSquare,
+  TrendingUp,
+  Calendar,
+  FileUp,
+  Eye,
+  ChevronRight,
+  Sparkles,
+  Zap,
+  BarChart3,
+  PieChart as PieChartIcon,
+  Activity,
+  TrendingUp as TrendingUpIcon,
+  Layers,
+  Upload,
+  Award,
+  Target,
+  Users,
+  BookOpen,
+  Video,
+  FileCheck,
+  AlertCircle,
+  ArrowUpRight,
+  ArrowDownRight,
+  MoreHorizontal,
+  RefreshCw,
+  Download,
+  Share2,
+  Star,
+  Clock3,
+  CheckCircle2,
+  XCircle as XCircleIcon,
+  PlayCircle,
+  FileText as FileTextIcon,
+  BarChart2,
+  TrendingUpDownIcon,
+  Search,
+  Settings,
+  ChevronDown,
+  type LucideProps
+} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { formatDistanceToNow, format } from "date-fns"
+import { motion } from "framer-motion"
 
-const sampleMarkers: GlobeMarker[] = [
+
+// Sample data for dashboard preview
+const sampleContentOverview = {
+  totalContents: 24,
+  totalPDF: 15,
+  totalYouTube: 9,
+  processing: 3,
+  ready: 19,
+  failed: 2
+};
+
+const sampleAllContent = [
   {
-    lat: 40.7128,
-    lng: -74.006,
-    src: "https://assets.aceternity.com/avatars/1.webp",
-    label: "New York",
+    _id: "1",
+    title: "Introduction to Machine Learning",
+    type: "pdf" as const,
+    status: "ready" as const,
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
-    lat: 51.5074,
-    lng: -0.1278,
-    src: "https://assets.aceternity.com/avatars/2.webp",
-    label: "London",
+    _id: "2",
+    title: "Advanced React Patterns",
+    type: "youtube" as const,
+    status: "ready" as const,
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
-    lat: 35.6762,
-    lng: 139.6503,
-    src: "https://assets.aceternity.com/avatars/3.webp",
-    label: "Tokyo",
+    _id: "3",
+    title: "Python Data Science Handbook",
+    type: "pdf" as const,
+    status: "processing" as const,
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
-    lat: -33.8688,
-    lng: 151.2093,
-    src: "https://assets.aceternity.com/avatars/4.webp",
-    label: "Sydney",
-  },
-  {
-    lat: 48.8566,
-    lng: 2.3522,
-    src: "https://assets.aceternity.com/avatars/5.webp",
-    label: "Paris",
-  },
-  {
-    lat: 28.6139,
-    lng: 77.209,
-    src: "https://assets.aceternity.com/avatars/6.webp",
-    label: "New Delhi",
-  },
-  {
-    lat: 55.7558,
-    lng: 37.6173,
-    src: "https://assets.aceternity.com/avatars/7.webp",
-    label: "Moscow",
-  },
-  {
-    lat: -22.9068,
-    lng: -43.1729,
-    src: "https://assets.aceternity.com/avatars/8.webp",
-    label: "Rio de Janeiro",
-  },
-  {
-    lat: 31.2304,
-    lng: 121.4737,
-    src: "https://assets.aceternity.com/avatars/9.webp",
-    label: "Shanghai",
-  },
-  {
-    lat: 25.2048,
-    lng: 55.2708,
-    src: "https://assets.aceternity.com/avatars/10.webp",
-    label: "Dubai",
-  },
-  {
-    lat: -34.6037,
-    lng: -58.3816,
-    src: "https://assets.aceternity.com/avatars/11.webp",
-    label: "Buenos Aires",
-  },
-  {
-    lat: 1.3521,
-    lng: 103.8198,
-    src: "https://assets.aceternity.com/avatars/12.webp",
-    label: "Singapore",
-  },
-  {
-    lat: 37.5665,
-    lng: 126.978,
-    src: "https://assets.aceternity.com/avatars/13.webp",
-    label: "Seoul",
-  },
+    _id: "4",
+    title: "System Design Interview Guide",
+    type: "youtube" as const,
+    status: "ready" as const,
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  }
 ];
- 
+
+type ContentStatus = "ready" | "processing" | "failed" | "default";
+type ContentType = "pdf" | "youtube";
+
+const STATUS_CONFIG: Record<ContentStatus, { 
+  icon: any; 
+  color: string; 
+  bg: string; 
+  border: string; 
+  label: string; 
+  spin: boolean;
+}> = {
+  ready: { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', label: 'Ready', spin: false },
+  processing: { icon: Loader2, color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', label: 'Processing', spin: true },
+  failed: { icon: XCircle, color: 'text-rose-500', bg: 'bg-rose-500/10', border: 'border-rose-500/20', label: 'Failed', spin: false },
+  default: { icon: Clock, color: 'text-slate-500', bg: 'bg-slate-500/10', border: 'border-slate-500/20', label: 'Pending', spin: false }
+};
+
+const TYPE_CONFIG: Record<ContentType, { 
+  icon: any; 
+  color: string; 
+  bg: string; 
+  label: string;
+}> = {
+  pdf: { icon: FileText, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'PDF' },
+  youtube: { icon: Youtube, color: 'text-rose-500', bg: 'bg-rose-500/10', label: 'YouTube' }
+};
+
+// Custom tooltip for charts
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white dark:bg-neutral-900 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-xl"
+      >
+        <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-2">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2 text-sm">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span className="text-neutral-600 dark:text-neutral-400">{entry.name}:</span>
+            <span className="font-medium text-neutral-900 dark:text-neutral-100">{entry.value.toLocaleString()}</span>
+          </div>
+        ))}
+      </motion.div>
+    );
+  }
+  return null;
+};
+
+// Status Bar Chart Component
+const StatusBarChart = ({ data }: { data: { ready: number; processing: number; failed: number } }) => {
+  const chartData = [
+    { name: 'Ready', value: data.ready, color: '#10b981' },
+    { name: 'Processing', value: data.processing, color: '#f59e0b' },
+    { name: 'Failed', value: data.failed, color: '#ef4444' }
+  ];
+
+  return (
+    <div className="h-[200px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <defs>
+            {chartData.map((item, index) => (
+              <linearGradient key={index} id={`statusBarGradient-${item.name}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={item.color} stopOpacity={0.8} />
+                <stop offset="95%" stopColor={item.color} stopOpacity={0.3} />
+              </linearGradient>
+            ))}
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" opacity={0.3} vertical={false} />
+          <XAxis 
+            dataKey="name" 
+            stroke="#737373" 
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis 
+            stroke="#737373" 
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar 
+            dataKey="value" 
+            radius={[4, 4, 0, 0]}
+            barSize={40}
+          >
+            {chartData.map((entry, index) => (
+              <Cell 
+                key={`cell-${index}`} 
+                fill={`url(#statusBarGradient-${entry.name})`}
+                stroke={entry.color}
+                strokeWidth={1}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+// Type Badge Component
+const TypeBadge = ({ type }: { type: ContentType }) => {
+  const config = TYPE_CONFIG[type];
+  const Icon = config.icon;
+  
+  return (
+    <Badge variant="outline" className={`${config.bg} ${config.color} border-0`}>
+      <Icon className="h-3 w-3 mr-1" />
+      <span className="text-xs">{config.label}</span>
+    </Badge>
+  );
+};
+
+// Status Badge Component
+const StatusBadge = ({ status }: { status: ContentStatus }) => {
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.default;
+  const Icon = config.icon;
+  
+  return (
+    <Badge className={`${config.bg} ${config.color} ${config.border} border px-2 py-0.5`}>
+      <Icon className={`h-3 w-3 mr-1 ${config.spin ? 'animate-spin' : ''}`} />
+      <span className="text-xs">{config.label}</span>
+    </Badge>
+  );
+};
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
+
+  const router = useRouter();
+
+  const handleStartClick = () => {
+    router.push("/sign-up")
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -107,44 +269,39 @@ export default function Home() {
       <NavbarDemo/>
 
       {/* Hero Section */}
-      <div className="relative mx-auto flex min-h-[40rem] w-full items-center overflow-hidden rounded-xl bg-white   dark:bg-neutral-950">
+      <div className="relative mx-auto flex min-h-[40rem] w-full items-center overflow-hidden rounded-xl bg-white dark:bg-neutral-950">
   
-  {/* Text Section */}
-  <div className="relative z-10 p-6 md:p-12 flex flex-col justify-center max-w-2xl">
-    <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-neutral-900 md:text-5xl lg:text-6xl dark:text-white">
-      Turn Any PDF or Video into Smart Study Notes.
-    </h2>
+        {/* Text Section */}
+        <div className="relative z-10 p-6 md:p-12 flex flex-col justify-center max-w-2xl">
+          <h2 className="mb-4 text-2xl font-extrabold tracking-tight text-neutral-900 md:text-5xl lg:text-6xl dark:text-white">
+            Turn Any PDF or Video into Smart Study Notes.
+          </h2>
 
-    <p className="mt-2 text-neutral-600 md:mt-6 md:text-lg dark:text-neutral-400">
-      Upload, summarize, ask doubts, and generate quizzes — all powered by AI.
-    </p>
+          <p className="mt-2 text-neutral-600 md:mt-6 md:text-lg dark:text-neutral-400">
+            Upload, summarize, ask doubts, and generate quizzes — all powered by AI.
+          </p>
 
-    <div className="mt-6 flex gap-4 md:mt-8">
-      <button className="flex cursor-pointer items-center justify-center rounded-lg bg-neutral-900 px-4 py-2 font-medium text-white shadow-[0px_0px_10px_0px_rgba(255,255,255,0.2)_inset] ring ring-white/20 ring-offset-2 ring-offset-neutral-900 transition-all duration-200 ring-inset hover:shadow-[0px_0px_20px_0px_rgba(255,255,255,0.4)_inset] hover:ring-white/40 active:scale-95">
-        Get Started
-      </button>
+          <div className="mt-6 flex gap-4 md:mt-8">
+            <button onClick={handleStartClick} className="flex cursor-pointer items-center justify-center rounded-lg bg-neutral-900 px-4 py-2 font-medium text-white shadow-[0px_0px_10px_0px_rgba(255,255,255,0.2)_inset] ring ring-white/20 ring-offset-2 ring-offset-neutral-900 transition-all duration-200 ring-inset hover:shadow-[0px_0px_20px_0px_rgba(255,255,255,0.4)_inset] hover:ring-white/40 active:scale-95">
+              Get Started
+            </button>
+          </div>
+        </div>
 
-      <button className="flex cursor-pointer items-center justify-center rounded-lg bg-white px-4 py-2 font-medium text-neutral-900 ring ring-neutral-200 transition-all duration-200 ring-inset hover:bg-neutral-50 hover:ring-neutral-300 active:scale-95">
-        Learn More
-      </button>
-    </div>
-  </div>
+        {/* Globe container */}
+        <div className="absolute -right-80 -bottom-96 z-10 size-160 md:-bottom-80 md:size-180">
+          <Globe3D
+            className="h-full w-full"
+            config={{
+              atmosphereColor: "#4da6ff",
+              atmosphereIntensity: 20,
+              bumpScale: 5,
+              autoRotateSpeed: 0.3,
+            }}
+          />
+        </div>
 
-  {/* Globe container */}
-  <div className="absolute -right-80 -bottom-96 z-10 size-160 md:-bottom-80 md:size-180">
-    <Globe3D
-      className="h-full w-full"
-      config={{
-        atmosphereColor: "#4da6ff",
-        atmosphereIntensity: 20,
-        bumpScale: 5,
-        autoRotateSpeed: 0.3,
-      }}
-    />
-  </div>
-
-</div>
-
+      </div>
 
       {/* Features Section */}
       <section id="features" className="py-20">
@@ -208,10 +365,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Demo Preview */}
+      {/* Demo Preview - macOS-style Window */}
       <section id="demo" className="py-20">
         <div className="container mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-12 items-start">
             <div className="animate-fade-up">
               <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-white">
                 Interactive <span className="bg-gradient-to-r from-[#03045e] to-[#0096c7] bg-clip-text text-transparent">Learning Dashboard</span>
@@ -232,34 +389,235 @@ export default function Home() {
               </ul>
             </div>
             
+            {/* macOS-style Window */}
             <div className="relative animate-fade-up animate-delay-200">
+              {/* Background glow effect */}
               <div className="absolute inset-0 blur-3xl rounded-3xl bg-gradient-to-r from-blue-400/10 to-cyan-400/10 dark:from-blue-500/20 dark:to-cyan-500/20"></div>
-              <div className="relative rounded-2xl p-6 backdrop-blur-sm bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:to-black border border-gray-200 dark:border-gray-800 shadow-xl"
-              >
-                <div className="flex space-x-2 mb-4">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                </div>
-                <div className="space-y-4">
-                  <div className="rounded-xl p-4 bg-gray-100 dark:bg-gray-800/50 animate-pulse">
-                    <div className="h-4 rounded w-3/4 mb-2 bg-gray-300 dark:bg-gray-700"></div>
-                    <div className="h-4 rounded w-1/2 bg-gray-300 dark:bg-gray-700"></div>
-                  </div>
-                  <div className="bg-blue-500/10 rounded-xl p-4 ml-8">
-                    <div className="h-4 bg-blue-400/30 rounded w-2/3 mb-2"></div>
-                    <div className="h-4 bg-blue-400/30 rounded w-1/2"></div>
-                  </div>
-                  <div className="rounded-xl p-4 bg-gray-100 dark:bg-gray-800/50">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="h-4 rounded w-1/4 bg-gray-300 dark:bg-gray-700"></div>
-                      <div className="h-4 rounded w-1/6 bg-gray-300 dark:bg-gray-700"></div>
+              
+              {/* Window Container */}
+              <div className="relative rounded-2xl overflow-hidden bg-white/90 dark:bg-neutral-900/90 backdrop-blur-xl border border-gray-200 dark:border-gray-800 shadow-2xl">
+                
+                {/* macOS Window Controls */}
+                <div className="flex items-center gap-2 px-4 py-3 bg-gray-100/80 dark:bg-neutral-800/80 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors cursor-pointer group relative">
+                      <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-[10px] bg-gray-800 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Close</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[1,2,3,4].map(i => (
-                        <div key={i} className="h-8 rounded bg-gray-300 dark:bg-gray-800"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors cursor-pointer group relative">
+                      <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-[10px] bg-gray-800 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Minimize</span>
+                    </div>
+                    <div className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600 transition-colors cursor-pointer group relative">
+                      <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-[10px] bg-gray-800 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Maximize</span>
+                    </div>
+                  </div>
+                  
+                  {/* Window Title */}
+                  <div className="flex-1 text-center">
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">AITute Dashboard</span>
+                  </div>
+                  
+                  {/* Window Menu Icons */}
+                  <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
+                    <Search className="w-3.5 h-3.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300" />
+                    <Settings className="w-3.5 h-3.5 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300" />
+                  </div>
+                </div>
+                
+                {/* Scrollable Content Area - Fixed Height */}
+                <div className="h-[500px] overflow-hidden custom-scrollbar p-4">
+                  
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 }}
+                      className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-colors cursor-pointer"
+                    >
+                      <p className="text-xs text-muted-foreground">Total Uploads</p>
+                      <p className="text-xl font-bold text-blue-500">{sampleContentOverview.totalContents}</p>
+                    </motion.div>
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15 }}
+                      className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                    >
+                      <p className="text-xs text-muted-foreground">Summaries</p>
+                      <p className="text-xl font-bold text-emerald-500">{sampleContentOverview.ready}</p>
+                    </motion.div>
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-colors cursor-pointer"
+                    >
+                      <p className="text-xs text-muted-foreground">Messages</p>
+                      <p className="text-xl font-bold text-purple-500">156</p>
+                    </motion.div>
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25 }}
+                      className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-colors cursor-pointer"
+                    >
+                      <p className="text-xs text-muted-foreground">Active</p>
+                      <p className="text-xl font-bold text-amber-500">12</p>
+                    </motion.div>
+                  </div>
+
+                  {/* Charts Section */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="mb-4"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-medium">Content Status</h3>
+                      <Badge variant="outline" className="px-2 py-0">
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Live Updates
+                        </div>
+                      </Badge>
+                    </div>
+                    <div className="h-[150px]">
+                      <StatusBarChart data={{
+                        ready: sampleContentOverview.ready,
+                        processing: sampleContentOverview.processing,
+                        failed: sampleContentOverview.failed
+                      }} />
+                    </div>
+                  </motion.div>
+
+                  {/* Content Types */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 }}
+                    className="grid grid-cols-2 gap-3 mb-4"
+                  >
+                    <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20 hover:bg-blue-500/10 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="h-4 w-4 text-blue-500" />
+                        <span className="text-xs font-medium">PDF Documents</span>
+                      </div>
+                      <p className="text-lg font-bold text-blue-500">{sampleContentOverview.totalPDF}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">62% of total</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-rose-500/5 border border-rose-500/20 hover:bg-rose-500/10 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Youtube className="h-4 w-4 text-rose-500" />
+                        <span className="text-xs font-medium">Videos</span>
+                      </div>
+                      <p className="text-lg font-bold text-rose-500">{sampleContentOverview.totalYouTube}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">38% of total</p>
+                    </div>
+                  </motion.div>
+
+                  {/* Recent Uploads Preview */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-medium">Recent Uploads</h3>
+                      <div className="flex items-center gap-1 text-xs text-blue-500 cursor-pointer hover:text-blue-600 transition-colors">
+                        <span>View all</span>
+                        <ChevronRight className="h-3 w-3" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {sampleAllContent.map((content, index) => (
+                        <motion.div 
+                          key={content._id} 
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.45 + index * 0.05 }}
+                          className="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 dark:bg-neutral-800/50 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all cursor-pointer group"
+                        >
+                          <div className={`p-1.5 rounded-lg ${TYPE_CONFIG[content.type].bg} group-hover:scale-110 transition-transform`}>
+                            {content.type === 'pdf' ? (
+                              <FileText className={`h-3 w-3 ${TYPE_CONFIG[content.type].color}`} />
+                            ) : (
+                              <Youtube className={`h-3 w-3 ${TYPE_CONFIG[content.type].color}`} />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate group-hover:text-blue-500 transition-colors">{content.title}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {formatDistanceToNow(new Date(content.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                          <StatusBadge status={content.status} />
+                        </motion.div>
                       ))}
                     </div>
+                  </motion.div>
+
+                  {/* Upload Progress Bar */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="mt-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium">Storage Used</span>
+                      <span className="text-xs text-muted-foreground">2.4 GB / 10 GB</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: "24%" }}
+                        transition={{ delay: 0.6, duration: 1 }}
+                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                      />
+                    </div>
+                  </motion.div>
+
+                  {/* Upload Button */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.55 }}
+                    className="mt-4"
+                  >
+                    <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 text-sm group relative overflow-hidden">
+                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                      <FileUp className="mr-2 h-4 w-4 group-hover:-translate-y-1 transition-transform" />
+                      Upload New Content
+                      <Sparkles className="ml-2 h-4 w-4 group-hover:rotate-12 transition-transform" />
+                    </Button>
+                  </motion.div>
+
+                  {/* Scroll Indicator - Shows when more content is available */}
+                  <div className="sticky bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white/80 dark:from-neutral-900/80 to-transparent pointer-events-none flex items-end justify-center pb-1">
+                    <motion.div
+                      animate={{ y: [0, 3, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground"
+                    >
+                      <span>Scroll for more</span>
+                      <ChevronDown className="h-3 w-3" />
+                    </motion.div>
+                  </div>
+                </div>
+
+                {/* Window Footer - Status Bar */}
+                <div className="px-4 py-2 bg-gray-100/80 dark:bg-neutral-800/80 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                      <span>Connected</span>
+                    </div>
+                    <span>v2.1.4</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span>Last sync: 2 min ago</span>
+                    <RefreshCw className="h-3 w-3 animate-spin-slow" />
                   </div>
                 </div>
               </div>
@@ -311,11 +669,52 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Custom CSS for scrollbar and animations */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 20px;
+        }
+        
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #475569;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+        
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #64748b;
+        }
+        
+        @keyframes spin-slow {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        
+        .animate-spin-slow {
+          animation: spin-slow 3s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }
 
-// SVG Icon Components - Updated to use currentColor for theme
+// SVG Icon Components
 function AIBrainSVG({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
@@ -431,22 +830,22 @@ function CheckSVG({ className }: { className?: string }) {
 // Data arrays with SVG components
 const features = [
   {
-    icon: <SummarySVG className="w-6 h-6 text-gray-800 dark:text-gray-200" />,
+    icon: <SummarySVG className="w-6 h-6" />,
     title: "AI Summaries",
     description: "Get structured summaries from long videos or documents in seconds"
   },
   {
-    icon: <ChatSVG className="w-6 h-6 text-gray-800 dark:text-gray-200" />,
+    icon: <ChatSVG className="w-6 h-6" />,
     title: "Context-Aware Chat",
     description: "AI answers questions based only on your uploaded content"
   },
   {
-    icon: <QuizSVG className="w-6 h-6 text-gray-800 dark:text-gray-200" />,
+    icon: <QuizSVG className="w-6 h-6" />,
     title: "Quiz Generator",
     description: "Auto-generated quizzes for revision and knowledge testing"
   },
   {
-    icon: <DashboardSVG className="w-6 h-6 text-gray-800 dark:text-gray-200" />,
+    icon: <DashboardSVG className="w-6 h-6" />,
     title: "Learning Dashboard",
     description: "Track progress and revisit content with intelligent organization"
   }
@@ -454,17 +853,17 @@ const features = [
 
 const steps = [
   {
-    icon: <UploadSVG className="w-12 h-12 text-gray-800 dark:text-gray-200" />,
+    icon: <UploadSVG className="w-12 h-12" />,
     title: "Upload Content",
     description: "Upload PDFs, documents, or paste YouTube links. Our AI processes any format instantly."
   },
   {
-    icon: <ProcessSVG className="w-12 h-12 text-gray-800 dark:text-gray-200" />,
+    icon: <ProcessSVG className="w-12 h-12" />,
     title: "AI Processing",
     description: "Our AI analyzes content, creates summaries, identifies key concepts, and prepares learning materials."
   },
   {
-    icon: <LearnSVG className="w-12 h-12 text-gray-800 dark:text-gray-200" />,
+    icon: <LearnSVG className="w-12 h-12" />,
     title: "Learn Faster",
     description: "Engage with interactive summaries, ask questions in chat, and test yourself with AI-generated quizzes."
   }
@@ -481,17 +880,17 @@ const dashboardFeatures = [
 
 const benefits = [
   {
-    icon: <TimeSVG className="w-8 h-8 text-gray-800 dark:text-gray-200" />,
+    icon: <TimeSVG className="w-8 h-8" />,
     title: "Saves Time",
     description: "Cut study time by 70% with instant AI summaries and structured learning paths"
   },
   {
-    icon: <FocusSVG className="w-8 h-8 text-gray-800 dark:text-gray-200" />,
+    icon: <FocusSVG className="w-8 h-8" />,
     title: "Reduces Overload",
     description: "Transform information overload into focused, digestible learning sessions"
   },
   {
-    icon: <InteractiveSVG className="w-8 h-8 text-gray-800 dark:text-gray-200" />,
+    icon: <InteractiveSVG className="w-8 h-8" />,
     title: "Interactive Learning",
     description: "Active engagement through quizzes and AI conversations improves retention"
   }
