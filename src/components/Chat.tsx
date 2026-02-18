@@ -492,7 +492,7 @@ const Chat = ({ contentId }: ChatProps) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="flex flex-col items-center justify-center min-h-[400px] text-center"
+                className="flex flex-col items-center justify-center min-h-[400px] text-center p-4"
               >
                 <motion.div
                   animate={{ 

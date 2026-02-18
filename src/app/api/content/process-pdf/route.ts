@@ -75,7 +75,8 @@ export async function POST(req : Request){
             })
         }
 
-        const pdfPath = path.join(process.cwd(), content.sourceUrl.replace(/^\//, ""));
+        // const pdfPath = path.join(process.cwd(), content.sourceUrl.replace(/^\//, ""));
+        const pdfPath = content.sourceUrl;
 
         const text = await extractText(pdfPath);
         const cleanedText = await cleanText(text);
