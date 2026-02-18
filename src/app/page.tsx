@@ -662,9 +662,13 @@ export default function Home() {
               />
               <span className="text-2xl font-bold text-gray-900 dark:text-white">AITute</span>
             </div>
-            <div className="text-center md:text-right text-gray-600 dark:text-gray-400">
+            <div className="text-start md:text-right text-gray-600 dark:text-gray-400">
               <p>© 2024 AITute. All rights reserved.</p>
               <p className="text-sm mt-2">The future of personalized learning</p>
+            </div>
+            <div>
+              <p className="text-sm mt-2">Created by <span className="font-semibold">Ayush Prasad</span></p>
+              <p className="text-sm mt-2">Contact :  <span className="font-semibold">ayushprasad2110@gmail.com</span></p>
             </div>
           </div>
         </div>
