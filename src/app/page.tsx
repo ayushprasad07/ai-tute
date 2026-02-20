@@ -666,7 +666,7 @@ export default function Home() {
               <p>© 2024 AITute. All rights reserved.</p>
               <p className="text-sm mt-2">The future of personalized learning</p>
             </div>
-            <div>
+            <div className="m-4">
               <p className="text-sm mt-2">Created by <span className="font-semibold">Ayush Prasad</span></p>
               <p className="text-sm mt-2">Contact :  <span className="font-semibold">ayushprasad2110@gmail.com</span></p>
             </div>

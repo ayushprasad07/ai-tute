@@ -1,15 +1,21 @@
 import generateSummary from "../generateSummary";
 import search from "../vector/search";
 
+export async function generateQuiz(contentId: string) {
 
-export async function generateQuiz(contentId : string){
-    const chunk = await search(contentId, "Generate a complete structured summary for this content", 8);
+    const chunks = await search(
+        contentId,
+        "Generate quiz questions from this content",
+        8
+    );
 
-    if(chunk.length===0){
-        return "No Content was found"
+    if (!chunks || chunks.length === 0) {
+        return [];
     }
 
-    const context = chunk.join("\n\n");
+    const context = chunks
+        .map((c: any) => c.text)
+        .join("\n\n");
 
     const prompt = `
         You are an AI tutor.
@@ -32,8 +38,23 @@ export async function generateQuiz(contentId : string){
         ${context}
     `;
 
-    const content = await generateSummary(prompt);
+    const response = await generateSummary(prompt);
 
-    return JSON.parse(content).questions;
+    try {
 
+        const cleaned = response
+            .replace(/```json/g, "")
+            .replace(/```/g, "")
+            .trim();
+
+        const parsed = JSON.parse(cleaned);
+
+        return parsed.questions || [];
+
+    } catch (error) {
+
+        console.error("Quiz parse error:", error);
+
+        return [];
+    }
 }

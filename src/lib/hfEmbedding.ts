@@ -1,21 +1,37 @@
-import { pipeline } from "@xenova/transformers";
+import { HfInference } from "@huggingface/inference";
+import "dotenv/config";
 
-let embedder: any;
+const hf = new HfInference(process.env.HUGGINGFACE_API_KEY!);
+console.log("HF KEY:", process.env.HUGGINGFACE_API_KEY?.slice(0, 10));
+
+
+const MODEL = "sentence-transformers/all-MiniLM-L6-v2";
+
+// cache optional (prevents duplicate requests in same runtime)
+const cache = new Map<string, number[]>();
 
 export async function hfEmbedding(text: string): Promise<number[]> {
-  if (!text) return [];
+  try {
+    if (!text) return [];
 
-  if (!embedder) {
-    embedder = await pipeline(
-      "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2"
-    );
+    // optional cache
+    if (cache.has(text)) {
+      return cache.get(text)!;
+    }
+
+    const embedding = await hf.featureExtraction({
+      model: MODEL,
+      inputs: text,
+    });
+
+    const vector = Array.from(embedding as number[]);
+
+    cache.set(text, vector);
+
+    return vector; // 384-dim vector same as before
+
+  } catch (error) {
+    console.error("HuggingFace embedding error:", error);
+    throw new Error("Embedding failed");
   }
-
-  const output = await embedder(text, {
-    pooling: "mean",
-    normalize: true,
-  });
-
-  return Array.from(output.data); // 384-d
 }
