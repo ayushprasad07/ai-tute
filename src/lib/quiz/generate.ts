@@ -1,60 +1,19 @@
-import generateSummary from "../generateSummary";
+import { generateQuizFromContext } from "@/lib/quiz/generateQuizFromContext";
 import search from "../vector/search";
 
 export async function generateQuiz(contentId: string) {
 
-    const chunks = await search(
-        contentId,
-        "Generate quiz questions from this content",
-        8
-    );
+  const chunks = await search(
+    contentId,
+    "technical skills education projects",
+    8
+  );
 
-    if (!chunks || chunks.length === 0) {
-        return [];
-    }
+  console.log("🔥 Chunks from vector search:", chunks);
 
-    const context = chunks
-        .map((c: any) => c.text)
-        .join("\n\n");
+  if (!chunks.length) return [];
 
-    const prompt = `
-        You are an AI tutor.
+  const context = chunks.join("\n\n");
 
-        Create 5 multiple-choice quiz questions based ONLY on the content below.
-
-        Return STRICT JSON in this format:
-        {
-        "questions": [
-            {
-            "question": "",
-            "options": ["", "", "", ""],
-            "correctAnswer": "",
-            "explanation": ""
-            }
-        ]
-        }
-
-        Content:
-        ${context}
-    `;
-
-    const response = await generateSummary(prompt);
-
-    try {
-
-        const cleaned = response
-            .replace(/```json/g, "")
-            .replace(/```/g, "")
-            .trim();
-
-        const parsed = JSON.parse(cleaned);
-
-        return parsed.questions || [];
-
-    } catch (error) {
-
-        console.error("Quiz parse error:", error);
-
-        return [];
-    }
+  return await generateQuizFromContext(context);
 }

@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -24,18 +24,46 @@ import {
   Check,
   Maximize2,
   Minimize2,
-  Youtube,
   FileText,
   ExternalLink,
   Loader2,
   MessageSquare,
-  Sparkles,
   BookOpen,
   GraduationCap,
+  Brain,
+  Award,
+  ChevronRight,
+  ChevronLeft,
+  RotateCcw,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
+
+// Types for quiz
+interface QuizQuestion {
+  _id: string;
+  question: string;
+  options: string[];
+  correctAnswer: string | number; // Can be either string or number
+  explanation: string;
+}
+
+interface QuizData {
+  _id: string;
+  contentId: string;
+  questions: QuizQuestion[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 const Content = () => {
   const params = useParams();
@@ -47,8 +75,39 @@ const Content = () => {
   const [sourceUrl, setSourceUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Quiz states
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
+  const [showResults, setShowResults] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [quizDialogOpen, setQuizDialogOpen] = useState(false);
 
   const queryClient = useQueryClient();
+
+  // Reset selected answers when changing questions or when quiz data changes
+  useEffect(() => {
+    // This ensures the radio button shows the correct selected answer for current question
+    // No need to reset anything here as we're using the selectedAnswers object
+  }, [currentQuestionIndex]);
+
+  // Fetch quiz data using the correct route
+  const { data: quizData, isLoading: isLoadingQuiz } = useQuery<QuizData>({
+    queryKey: ["quiz", contentId],
+    queryFn: async () => {
+      try {
+        const response = await axios.get(`/api/quiz/get-quiz/${contentId}`);
+        if (response.data.success) {
+          return response.data.data;
+        }
+        return null;
+      } catch (error) {
+        return null;
+      }
+    },
+    enabled: !!contentId,
+    retry: false,
+  });
 
   const handleFileUpload = (files: File[]) => {
     setFiles(files);
@@ -110,7 +169,7 @@ const Content = () => {
   const handleURLSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const response = await axios.post("/api/content/process-youtube", {
+      await axios.post("/api/content/process-youtube", {
         contentId: params.contentId,
         sourceUrl: sourceUrl,
       });
@@ -151,6 +210,89 @@ const Content = () => {
     document.body.removeChild(element);
   };
 
+  // Quiz handlers
+  const handleGenerateQuiz = async () => {
+    setIsGeneratingQuiz(true);
+    try {
+      const response = await axios.post("/api/quiz", { contentId });
+      
+      if (response.data.success) {
+        toast.success("Quiz generated successfully!");
+        
+        queryClient.invalidateQueries({
+          queryKey: ["quiz", contentId],
+        });
+        
+        // Reset quiz state
+        setSelectedAnswers({});
+        setShowResults(false);
+        setCurrentQuestionIndex(0);
+        
+        // Open quiz dialog
+        setQuizDialogOpen(true);
+      }
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiResponse>;
+      toast.error(
+        axiosError.response?.data.message ?? "Failed to generate quiz"
+      );
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
+  const handleAnswerSelect = (questionIndex: number, answerIndex: number) => {
+    setSelectedAnswers(prev => ({
+      ...prev,
+      [questionIndex]: answerIndex
+    }));
+  };
+
+  const isAnswerCorrect = (question: QuizQuestion, questionIndex: number): boolean => {
+    const selectedAnswer = selectedAnswers[questionIndex];
+    if (selectedAnswer === undefined) return false;
+    
+    // Handle both string and number correctAnswer types
+    const correctAnswerIndex = typeof question.correctAnswer === 'string' 
+      ? question.options.indexOf(question.correctAnswer)
+      : question.correctAnswer;
+    
+    return selectedAnswer === correctAnswerIndex;
+  };
+
+  const calculateScore = () => {
+    if (!quizData?.questions) return 0;
+    let correct = 0;
+    quizData.questions.forEach((q, index) => {
+      if (isAnswerCorrect(q, index)) {
+        correct++;
+      }
+    });
+    return correct;
+  };
+
+  const handleSubmitQuiz = () => {
+    setShowResults(true);
+  };
+
+  const handleResetQuiz = () => {
+    setSelectedAnswers({});
+    setShowResults(false);
+    setCurrentQuestionIndex(0);
+  };
+
+  const handleNextQuestion = () => {
+    if (quizData && currentQuestionIndex < quizData.questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    }
+  };
+
+  const handlePrevQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
   const { data: content, isLoading } = useQuery({
     queryKey: ["content", contentId],
     queryFn: async () => {
@@ -172,6 +314,12 @@ const Content = () => {
   const url = content?.url;
   const thumbnailUrl = isYoutube ? `https://img.youtube.com/vi/${url}/maxresdefault.jpg` : "";
   const title = content?.title || "Content Studio";
+  const hasQuiz = quizData?.questions && quizData.questions.length > 0;
+
+  // Check if all questions are answered
+  const allQuestionsAnswered = quizData?.questions 
+    ? Object.keys(selectedAnswers).length === quizData.questions.length
+    : false;
 
   // Custom components for markdown rendering
   const MarkdownComponents = {
@@ -236,6 +384,236 @@ const Content = () => {
             <div className="w-24 h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-transparent rounded-full"></div>
           </div>
         </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopySummary}
+            className="gap-2"
+          >
+            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copied!" : "Copy"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadSummary}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="gap-2"
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
+          <Button
+            onClick={handleGenerateQuiz}
+            disabled={isGeneratingQuiz}
+            className="gap-2 bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 text-white"
+          >
+            {isGeneratingQuiz ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Brain className="h-4 w-4" />
+            )}
+            {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
+          </Button>
+        </div>
+
+        {/* Quiz Dialog */}
+        <Dialog open={quizDialogOpen} onOpenChange={setQuizDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-blue-600">
+                <Brain className="h-5 w-5 text-blue-600" />
+                Quiz: {title}
+              </DialogTitle>
+              <DialogDescription>
+                Test your knowledge with these AI-generated questions
+              </DialogDescription>
+            </DialogHeader>
+
+            {isLoadingQuiz ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : hasQuiz ? (
+              <div className="space-y-6">
+                {/* Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Question {currentQuestionIndex + 1} of {quizData.questions.length}</span>
+                    {showResults && (
+                      <span className="font-semibold text-blue-600">
+                        Score: {calculateScore()}/{quizData.questions.length}
+                      </span>
+                    )}
+                  </div>
+                  <Progress 
+                    value={((currentQuestionIndex + 1) / quizData.questions.length) * 100} 
+                    className="h-2 [&>div]:bg-blue-600"
+                  />
+                </div>
+
+                {/* Current Question */}
+                {!showResults ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900">
+                      <p className="font-medium text-lg mb-4 text-blue-900 dark:text-blue-100">
+                        {quizData.questions[currentQuestionIndex].question}
+                      </p>
+                      
+                      <RadioGroup
+                        key={`question-${currentQuestionIndex}`}
+                        value={selectedAnswers[currentQuestionIndex]?.toString()}
+                        onValueChange={(value) => 
+                          handleAnswerSelect(currentQuestionIndex, parseInt(value))
+                        }
+                        className="space-y-3"
+                      >
+                        {quizData.questions[currentQuestionIndex].options.map((option, optIndex) => (
+                          <div key={optIndex} className="flex items-center space-x-2">
+                            <RadioGroupItem 
+                              value={optIndex.toString()} 
+                              id={`q${currentQuestionIndex}-opt${optIndex}`}
+                              className="border-blue-400 text-blue-600 focus:ring-blue-400"
+                            />
+                            <Label 
+                              htmlFor={`q${currentQuestionIndex}-opt${optIndex}`}
+                              className="text-gray-700 dark:text-gray-300"
+                            >
+                              {option}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+
+                    {/* Navigation Buttons */}
+                    <div className="flex justify-between">
+                      <Button
+                        variant="outline"
+                        onClick={handlePrevQuestion}
+                        disabled={currentQuestionIndex === 0}
+                        className="border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-950"
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-2" />
+                        Previous
+                      </Button>
+                      <div className="space-x-2">
+                        {currentQuestionIndex === quizData.questions.length - 1 ? (
+                          <Button 
+                            onClick={handleSubmitQuiz}
+                            disabled={!allQuestionsAnswered}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Submit Quiz
+                          </Button>
+                        ) : (
+                          <Button 
+                            onClick={handleNextQuestion}
+                            disabled={selectedAnswers[currentQuestionIndex] === undefined}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-2" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Results View */
+                  <div className="space-y-6">
+                    <div className="text-center p-6 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <Award className="h-12 w-12 mx-auto text-blue-600 mb-2" />
+                      <h3 className="text-2xl font-bold mb-2 text-blue-800 dark:text-blue-200">
+                        Your Score: {calculateScore()}/{quizData.questions.length}
+                      </h3>
+                      <p className="text-blue-600 dark:text-blue-400">
+                        {calculateScore() === quizData.questions.length 
+                          ? "Perfect! Excellent work!" 
+                          : calculateScore() >= quizData.questions.length / 2 
+                          ? "Good job! Keep learning!" 
+                          : "Keep practicing! You'll do better next time."}
+                      </p>
+                    </div>
+
+                    {/* Question Review */}
+                    <div className="space-y-4">
+                      <h4 className="font-semibold text-blue-800 dark:text-blue-200">Review Questions:</h4>
+                      {quizData.questions.map((q, qIndex) => {
+                        const isCorrect = isAnswerCorrect(q, qIndex);
+                        const selectedAnswerIndex = selectedAnswers[qIndex];
+                        const correctAnswerIndex = typeof q.correctAnswer === 'string'
+                          ? q.options.indexOf(q.correctAnswer)
+                          : q.correctAnswer;
+                        
+                        return (
+                          <Card key={qIndex} className={`border-l-4 ${
+                            isCorrect ? "border-l-green-500" : "border-l-red-500"
+                          }`}>
+                            <CardContent className="p-4">
+                              <p className="font-medium mb-2 text-blue-900 dark:text-blue-100">{qIndex + 1}. {q.question}</p>
+                              <p className="text-sm mb-1">
+                                Your answer: {selectedAnswerIndex !== undefined ? q.options[selectedAnswerIndex] : "Not answered"}
+                                {isCorrect ? " ✅" : " ❌"}
+                              </p>
+                              {!isCorrect && (
+                                <p className="text-sm text-blue-600 dark:text-blue-400 mb-2">
+                                  Correct answer: {q.options[correctAnswerIndex]}
+                                </p>
+                              )}
+                              <p className="text-sm text-muted-foreground mt-2 border-t border-blue-100 dark:border-blue-800 pt-2">
+                                {q.explanation}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+
+                    <Button 
+                      onClick={handleResetQuiz} 
+                      className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Retake Quiz
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">No quiz available for this content.</p>
+                <Button 
+                  onClick={handleGenerateQuiz} 
+                  disabled={isGeneratingQuiz}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isGeneratingQuiz ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Brain className="mr-2 h-4 w-4" />
+                      Generate Quiz
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -333,7 +711,6 @@ const Content = () => {
       <div className="container mx-auto p-4 max-w-2xl">
         {/* Title Section */}
         <div className="text-center mb-8">
-          
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             <span className="bg-gradient-to-r from-red-600 to-red-400 bg-clip-text text-transparent">
               {title}
@@ -395,7 +772,6 @@ const Content = () => {
       <div className="container mx-auto p-4 max-w-2xl">
         {/* Title Section */}
         <div className="text-center mb-8">
-          
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             <span className="bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 bg-clip-text text-transparent">
               {title}
@@ -438,7 +814,7 @@ const Content = () => {
               )}
             </Button>
 
-            <Separator className="bg-neutral-200 dark:border-neutral-800" />
+            <Separator />
 
             <div className="space-y-4">
               <Button
@@ -452,7 +828,7 @@ const Content = () => {
               {summary && (
                 <div className="mt-6">
                   <h3 className="font-semibold mb-2">Generated Summary</h3>
-                  <ScrollArea className="h-[300px] rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 bg-white/50 dark:bg-neutral-900/50">
+                  <ScrollArea className="h-[300px] rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={MarkdownComponents}

@@ -1,14 +1,16 @@
+import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import dbConnect from "@/lib/dbConnect";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/options";
 import Content from "@/models/Content";
-import mongoose from "mongoose";
-import { generateQuiz } from "@/lib/quiz/generate";
 import Quizes from "@/models/Quizes";
+import mongoose from "mongoose";
+import { getServerSession } from "next-auth";
 
-// /api/quiz
+// /api/quiz/get-quiz/[contentId]
 
-export async function POST(req : Request){
+export async function GET(
+    req : Request,
+    {params} : {params : Promise<{contentId : string}>}
+){
     await dbConnect();
 
     const session = await getServerSession(authOptions);
@@ -22,10 +24,8 @@ export async function POST(req : Request){
         })
     }
 
-    const userId = session.user._id;
-
     try {
-        const {contentId} = await req.json();
+        const {contentId} = await params;
 
         if(!contentId){
             return Response.json({
@@ -37,48 +37,43 @@ export async function POST(req : Request){
         }
 
         const content = await Content.findOne({
-            _id : new mongoose.Types.ObjectId(contentId),
-            userId
+            _id : new mongoose.Types.ObjectId(contentId)
         });
 
         if(!content){
             return Response.json({
                 success : false,
-                message : "Content not found or Unauthorized user"
+                message : "Content not found"
             },{
                 status : 404
             })
         }
 
-        const quizes  = await generateQuiz(contentId);
-
-        const quiz = await Quizes.findOneAndUpdate({
-            contentId : new mongoose.Types.ObjectId(contentId)
-        },{
-            $push : {
-                questions : {
-                    $each : quizes
-                }
-            }
-        },{
-            new : true,
-            upsert : true
+        const quiz = await Quizes.findOne({
+            contentId : new mongoose.Types.ObjectId(contentId),
         });
 
-        console.log(quiz);
+        if(!quiz){
+            return Response.json({
+                success : false,
+                message : "Quiz not found"
+            },{
+                status : 404
+            })
+        }
 
         return Response.json({
             success : true,
-            message : "Quiz created successfully",
+            message : quiz ? "Quiz found" : "No quiz found for this content",
             data : quiz
         },{
             status : 200
         })
     } catch (error) {
-        console.log(error);
+        console.log("Error getting quiz");
         return Response.json({
             success : false,
-            message : "Error creating quiz"
+            message : "Something went wrong"
         },{
             status : 500
         })
