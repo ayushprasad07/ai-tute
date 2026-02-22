@@ -5,6 +5,7 @@ import Content from "@/models/Content";
 import mongoose from "mongoose";
 import { generateChatAnswer } from "@/lib/chat/generate";
 import Chat from "@/models/Chat";
+import { protectRoute } from "@/lib/protectRoute";
 
 
 export async function POST(req : Request){
@@ -25,7 +26,7 @@ export async function POST(req : Request){
 
     try {
         const {contentId, question} = await req.json();
-
+        
         if(!contentId){
             return Response.json({
                 success : false,
@@ -33,6 +34,20 @@ export async function POST(req : Request){
             },{
                 status : 400
             })
+        }
+        
+        const blocked = await protectRoute({
+            action: "chat",
+            req,
+            contentId,
+            userLimit: 10,
+            ipLimit: 20,
+            contentLimit: 10,
+            window: 60
+        })
+
+        if(blocked){
+            return blocked;
         }
 
         if (typeof question !== "string") {

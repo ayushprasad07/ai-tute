@@ -65,7 +65,7 @@ export async function POST(req : Request){
             upsert : true
         });
 
-        console.log(quiz);
+        // console.log(quiz);
 
         return Response.json({
             success : true,

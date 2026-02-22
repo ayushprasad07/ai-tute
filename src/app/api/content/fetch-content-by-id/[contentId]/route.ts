@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import Content from "@/models/Content";
 import mongoose from "mongoose";
 import { title } from "process";
+import { protectRoute } from "@/lib/protectRoute";
 
 export async function GET(
   req: Request,
@@ -24,6 +25,16 @@ export async function GET(
   const { contentId } = await params;
 
   try {
+    
+    const blocked = await protectRoute({
+            action: "fetch-all",
+            req,
+            userLimit: 30,   // user can fetch 30 times/min
+            ipLimit: 60,     // IP can fetch 60 times/min
+            window: 60
+        });
+
+    if (blocked) return blocked;
     if (!contentId) {
       return Response.json(
         { success: false, message: "Please provide content" },

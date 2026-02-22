@@ -5,6 +5,7 @@ import { authOptions } from "../../auth/[...nextauth]/options";
 import Content from "@/models/Content";
 import mongoose from "mongoose";
 import generateSummaryForContent from "@/lib/summary/generate";
+import { protectRoute } from "@/lib/protectRoute";
 
 
 export async function POST(req : Request){
@@ -35,6 +36,18 @@ export async function POST(req : Request){
                 status : 400
             })
         }
+
+        const blocked = await protectRoute({
+            action: "summary",
+            req,
+            contentId,
+            userLimit: 10,   // max 10 summaries per minute per user
+            ipLimit: 20,     // max 20 summaries per minute per IP
+            contentLimit: 3, // max 3 attempts per minute per content
+            window: 60
+        });
+
+        if (blocked) return blocked;
 
         const content = await Content.findOne({
             _id : new mongoose.Types.ObjectId(contentId),

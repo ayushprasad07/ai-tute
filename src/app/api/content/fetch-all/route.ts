@@ -4,6 +4,7 @@ import Content from "@/models/Content";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/options";
 import mongoose from "mongoose";
+import { protectRoute } from "@/lib/protectRoute";
 
 
 export async function POST(req : Request){
@@ -23,6 +24,16 @@ export async function POST(req : Request){
     const userId = session.user._id;
 
     try {
+
+        const blocked = await protectRoute({
+            action: "fetch-all",
+            req,
+            userLimit: 30,   // user can fetch 30 times/min
+            ipLimit: 60,     // IP can fetch 60 times/min
+            window: 60
+        });
+
+        if (blocked) return blocked;
 
         const contents = await Content.find({
             userId : new mongoose.Types.ObjectId(userId)

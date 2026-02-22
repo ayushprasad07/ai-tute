@@ -9,6 +9,7 @@ import { extractText } from "@/lib/pdf/extractText";
 import cleanText from "@/lib/pdf/cleanText";
 import chunkText from "@/lib/pdf/chunkText";
 import { embedAndStore } from "@/lib/vector/embedAndStore";
+import { protectRoute } from "@/lib/protectRoute";
 
 
 export async function POST(req : Request){
@@ -37,6 +38,18 @@ export async function POST(req : Request){
             status : 400
         })
     }
+
+    const blocked = await protectRoute({
+      action: "process-pdf",
+      req,
+      contentId,
+      userLimit: 5,     // heavy operation → strict limit
+      ipLimit: 10,
+      contentLimit: 2,
+      window: 60
+    });
+
+    if (blocked) return blocked;
     
     try {
 

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import Content from "@/models/Content";
 import { authOptions } from "../../auth/[...nextauth]/options";
 import { supabase } from "@/lib/supabase";
+import { protectRoute } from "@/lib/protectRoute";
 
 export async function POST(req: Request) {
   await dbConnect();
@@ -29,6 +30,18 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    const blocked = await protectRoute({
+            action: "upload",
+            req,
+            contentId,
+            userLimit: 10,   // max 10 summaries per minute per user
+            ipLimit: 20,     // max 20 summaries per minute per IP
+            contentLimit: 3, // max 3 attempts per minute per content
+            window: 60
+        });
+
+    if (blocked) return blocked;
 
     // ✅ Validate file properly
     if (!(file instanceof Blob)) {

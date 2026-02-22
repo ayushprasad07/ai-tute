@@ -4,6 +4,7 @@ import dbConnect from "@/lib/dbConnect";
 import Content from "@/models/Content";
 import mongoose from "mongoose";
 import Chat from "@/models/Chat";
+import { protectRoute } from "@/lib/protectRoute";
 
 export async function GET( req : Request,
     {params} : {params : Promise<{contentId : string}>}
@@ -33,6 +34,20 @@ export async function GET( req : Request,
             },{
                 status : 400
             })
+        }
+
+        const blocked = await protectRoute({
+            action: "chat",
+            req,
+            contentId,
+            userLimit: 10,
+            ipLimit: 20,
+            contentLimit: 10,
+            window: 60
+        })
+
+        if(blocked){
+            return blocked;
         }
 
         const content = await Content.findOne({

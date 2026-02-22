@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
+import { rateLimit } from "@/lib/rateLimit";
 
 
 
@@ -15,37 +16,62 @@ export const authOptions : NextAuthOptions = {
                 identifier: { label: "Email", type: "text", placeholder: "jsmith" },
                 password: { label: "Password", type: "password" }
             },
-            async authorize(credentials : any) : Promise<any> {
-                await dbConnect();
+            async authorize(credentials : any, req : any) : Promise<any> {
 
-                // if(!credentials.identifier || !credentials.password){
-                //     throw new Error("All fields are required");
-                // }
+                const ip =
+                    req?.headers?.["x-forwarded-for"]?.split(",")[0] ||
+                    req?.headers?.["x-real-ip"] ||
+                    "anonymous";
+
+                const limit = await rateLimit(
+                    `aitute:login:ip:${ip}`,
+                    {
+                        limit: 5,   // max 5 login attempts
+                        window: 60  // per minute
+                    }
+                );
+
+                if (!limit.success) {
+                    throw new Error("Too many login attempts. Try again later.");
+                }
+
                 try {
-                    const user = await User.findOne({
-                        $or:[
-                            {email : credentials.identifier},                            
-                            {username : credentials.identifier},                            
-                        ]
-                    })
+                    await dbConnect(); // only DB connection inside try
 
-                    if(!user){
-                        throw new Error("User not found");
+                    const user = await User.findOne({
+                        $or: [
+                            { email: credentials.identifier },
+                            { username: credentials.identifier },
+                        ],
+                    });
+
+                    if (!user) {
+                        throw new Error("Invalid credentials");
                     }
 
-                    if(!user.isVerified){
+                    if (!user.isVerified) {
                         throw new Error("Please verify your account first");
                     }
 
-                    const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+                    const isPasswordValid = await bcrypt.compare(
+                        credentials.password,
+                        user.password
+                    );
 
-                    if(!isPasswordValid){
+                    if (!isPasswordValid) {
                         throw new Error("Invalid credentials");
-                    }else{
-                        return user;
                     }
 
-                } catch (error) {
+                    return user;
+
+                } catch (error: any) {
+                    console.error("Auth error:", error);
+
+                    if (error.message === "Invalid credentials" ||
+                        error.message === "Please verify your account first") {
+                        throw error;
+                    }
+
                     throw new Error("Database connection error");
                 }
             }

@@ -4,6 +4,7 @@ import Content from "@/models/Content";
 import mongoose from "mongoose";
 import { getServerSession } from "next-auth";
 import { supabase } from "@/lib/supabase";
+import { protectRoute } from "@/lib/protectRoute";
 
 export async function DELETE(
   req: Request,
@@ -24,6 +25,20 @@ export async function DELETE(
 
   try {
     const { contentId } = await params;
+
+    const blocled = await protectRoute({
+      action: "delete",
+      req,
+      contentId,
+      userLimit: 10,
+      ipLimit: 20,
+      contentLimit: 10,
+      window: 60
+    })
+
+    if(blocled){
+      return blocled;
+    }
 
     const content = await Content.findOne({
       _id: new mongoose.Types.ObjectId(contentId),

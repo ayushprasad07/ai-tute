@@ -9,7 +9,7 @@ export async function generateQuiz(contentId: string) {
     8
   );
 
-  console.log("🔥 Chunks from vector search:", chunks);
+//   console.log("🔥 Chunks from vector search:", chunks);
 
   if (!chunks.length) return [];
 
