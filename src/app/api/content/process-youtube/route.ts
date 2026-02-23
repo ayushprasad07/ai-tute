@@ -9,7 +9,6 @@ import { extractTranscript } from "@/lib/youtube/extractTranscript";
 import cleanText from "@/lib/pdf/cleanText";
 import chunkText from "@/lib/pdf/chunkText";
 import { embedAndStore } from "@/lib/vector/embedAndStore";
-import { localWhisperTranscribe } from "@/lib/youtube/localWhisper";
 import { protectRoute } from "@/lib/protectRoute";
 
 
@@ -76,7 +75,13 @@ export async function POST(req:Request) {
         } catch {
             console.log("⚠️ Transcript API failed — using LOCAL WHISPER");
 
-            transcript = await localWhisperTranscribe(sourceUrl);
+            // transcript = await localWhisperTranscribe(sourceUrl);
+            return Response.json({
+                success : false,
+                message : "Transcript generation failed"
+            },{
+                status : 400
+            })
         }
 
         if (!transcript || transcript.length < 50) {
