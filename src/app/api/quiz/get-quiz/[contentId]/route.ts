@@ -53,14 +53,14 @@ export async function GET(
             contentId : new mongoose.Types.ObjectId(contentId),
         });
 
-        if(!quiz){
-            return Response.json({
-                success : false,
-                message : "Quiz not found"
-            },{
-                status : 404
-            })
-        }
+        // if(!quiz){
+        //     return Response.json({
+        //         success : false,
+        //         message : "Quiz not found"
+        //     },{
+        //         status : 404
+        //     })
+        // }
 
         return Response.json({
             success : true,
