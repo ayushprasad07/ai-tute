@@ -47,14 +47,14 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
-import { fetchTranscript } from 'youtube-transcript-plus';
+import { extractTranscript } from "@/lib/youtube/extractTranscript";
 
 // Types for quiz
 interface QuizQuestion {
   _id: string;
   question: string;
   options: string[];
-  correctAnswer: string | number;
+  correctAnswer: string | number; // Can be either string or number
   explanation: string;
 }
 
@@ -81,7 +81,6 @@ const Content = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isProcessingYoutube, setIsProcessingYoutube] = useState(false);
-  const [isExtractingTranscript, setIsExtractingTranscript] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   
   // Quiz states
@@ -92,7 +91,7 @@ const Content = () => {
 
   const queryClient = useQueryClient();
 
-  // Fetch quiz data
+  // Fetch quiz data using the correct route
   const { data: quizData, isLoading: isLoadingQuiz } = useQuery<QuizData>({
     queryKey: ["quiz", contentId],
     queryFn: async () => {
@@ -174,96 +173,38 @@ const Content = () => {
     setSourceUrl(e.target.value);
   };
 
-  // UPDATED: Frontend handles transcript extraction
   const handleURLSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    if (!sourceUrl.trim()) {
-      toast.error("Please enter a YouTube URL");
-      return;
-    }
-
     setIsProcessingYoutube(true);
-    setIsExtractingTranscript(true);
-    
     try {
-      console.log("🎬 Extracting transcript from YouTube...");
-      
-      // Step 1: Extract transcript on frontend
-      const transcriptArray = await fetchTranscript(sourceUrl);
-      
-      if (!transcriptArray || transcriptArray.length === 0) {
-        throw new Error("No transcript found for this video");
-      }
-
-      // Convert transcript array to plain text
-      const transcriptText = transcriptArray
-        .map(item => item.text)
-        .filter(Boolean)
-        .join(" ");
-
-      console.log("✅ Transcript extracted:", {
-        length: transcriptArray.length,
-        textLength: transcriptText.length,
-        preview: transcriptText.substring(0, 100) + "..."
-      });
-
-      if (transcriptText.length < 50) {
-        throw new Error("Transcript too short (minimum 50 characters required)");
-      }
-
-      setIsExtractingTranscript(false);
-
-      // Step 2: Send transcript to backend
-      console.log("📤 Sending transcript to backend...");
-      const processRes = await axios.post("/api/content/process-youtube", {
+      const transcript = await extractTranscript(sourceUrl);
+      await axios.post("/api/content/process-youtube", {
         contentId: params.contentId,
         sourceUrl: sourceUrl,
-        transcript: transcriptText
+        transcript : transcript
       });
 
-      console.log("✅ Process response:", processRes.data);
-
-      if (!processRes.data.success) {
-        throw new Error(processRes.data.message || "Failed to process video");
-      }
-
-      toast.success("Video processed! Generating summary...");
-
-      // Step 3: Generate summary
       const summaryRes = await axios.post(
         "/api/content/generate-summary",
-        { contentId: params.contentId }
+        { contentId }
       );
-
-      console.log("✅ Summary response:", summaryRes.data);
 
       if (summaryRes.data.success) {
         setSummary(summaryRes.data.content);
-        
-        // Invalidate and refetch content
-        await queryClient.invalidateQueries({
-          queryKey: ["content", params.contentId],
+
+        queryClient.invalidateQueries({
+          queryKey: ["content", contentId],
         });
         
-        toast.success("Summary generated successfully!");
-      } else {
-        throw new Error(summaryRes.data.message || "Failed to generate summary");
+        toast.success("Video processed successfully!");
       }
     } catch (error) {
-      console.error("❌ Error in handleURLSubmit:", error);
-      
-      let errorMessage = "Something went wrong";
-      if (axios.isAxiosError(error)) {
-        errorMessage = error.response?.data?.message || error.message;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      toast.error(errorMessage);
+      const axiosError = error as AxiosError<ApiResponse>;
+      toast.error(
+        axiosError.response?.data.message ?? "Something went wrong"
+      );
     } finally {
       setIsProcessingYoutube(false);
-      setIsExtractingTranscript(false);
     }
   };
 
@@ -325,6 +266,7 @@ const Content = () => {
     const selectedAnswer = selectedAnswers[questionIndex];
     if (selectedAnswer === undefined) return false;
     
+    // Handle both string and number correctAnswer types
     const correctAnswerIndex = typeof question.correctAnswer === 'string' 
       ? question.options.indexOf(question.correctAnswer)
       : question.correctAnswer;
@@ -388,10 +330,12 @@ const Content = () => {
   const title = content?.title || "Content Studio";
   const hasQuiz = quizData?.questions && quizData.questions.length > 0;
 
+  // Check if all questions are answered
   const allQuestionsAnswered = quizData?.questions 
     ? Object.keys(selectedAnswers).length === quizData.questions.length
     : false;
 
+  // Custom components for markdown rendering
   const MarkdownComponents = {
     code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || "");
@@ -822,14 +766,9 @@ const Content = () => {
               <Button 
                 type="submit" 
                 className="w-full"
-                disabled={isProcessingYoutube || isExtractingTranscript}
+                disabled={isProcessingYoutube}
               >
-                {isExtractingTranscript ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Extracting Transcript...
-                  </>
-                ) : isProcessingYoutube ? (
+                {isProcessingYoutube ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing Video...
@@ -839,23 +778,13 @@ const Content = () => {
                 )}
               </Button>
             </form>
-            
-            {/* Show transcript extraction progress */}
-            {isExtractingTranscript && (
-              <div className="mt-6 text-center py-4">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Fetching video transcript...</p>
-              </div>
-            )}
-            
-            {isGeneratingSummary && !isExtractingTranscript && (
+            {isGeneratingSummary && (
               <div className="mt-6 text-center py-4">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">Generating summary...</p>
               </div>
             )}
-            
-            {summary && !isGeneratingSummary && !isExtractingTranscript && (
+            {summary && !isGeneratingSummary && (
               <div className="mt-6">
                 <h3 className="font-semibold mb-2">Generated Summary</h3>
                 <ScrollArea className="h-[300px] rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 bg-white/50 dark:bg-neutral-900/50">
