@@ -76,20 +76,19 @@ const Content = () => {
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
-  // Quiz states
+  // Loading states
+  const [isUploading, setIsUploading] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isProcessingYoutube, setIsProcessingYoutube] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  
+  // Quiz states
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
   const [showResults, setShowResults] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [quizDialogOpen, setQuizDialogOpen] = useState(false);
 
   const queryClient = useQueryClient();
-
-  // Reset selected answers when changing questions or when quiz data changes
-  useEffect(() => {
-    // This ensures the radio button shows the correct selected answer for current question
-    // No need to reset anything here as we're using the selectedAnswers object
-  }, [currentQuestionIndex]);
 
   // Fetch quiz data using the correct route
   const { data: quizData, isLoading: isLoadingQuiz } = useQuery<QuizData>({
@@ -116,6 +115,7 @@ const Content = () => {
   const handleUpload = async () => {
     if (!files.length) return toast.error("Upload a file first");
 
+    setIsUploading(true);
     setDisabled(true);
     try {
       const formData = new FormData();
@@ -134,11 +134,13 @@ const Content = () => {
         axiosError.response?.data.message ?? "Something went wrong"
       );
     } finally {
+      setIsUploading(false);
       setDisabled(false);
     }
   };
 
   const handleGenerate = async () => {
+    setIsGeneratingSummary(true);
     try {
       await axios.post("/api/content/process-pdf", { contentId });
 
@@ -153,12 +155,16 @@ const Content = () => {
         queryClient.invalidateQueries({
           queryKey: ["content", contentId],
         });
+        
+        toast.success("Summary generated successfully!");
       }
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast.error(
         axiosError.response?.data.message ?? "Something went wrong"
       );
+    } finally {
+      setIsGeneratingSummary(false);
     }
   };
 
@@ -168,6 +174,7 @@ const Content = () => {
 
   const handleURLSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsProcessingYoutube(true);
     try {
       await axios.post("/api/content/process-youtube", {
         contentId: params.contentId,
@@ -185,12 +192,16 @@ const Content = () => {
         queryClient.invalidateQueries({
           queryKey: ["content", contentId],
         });
+        
+        toast.success("Video processed successfully!");
       }
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast.error(
         axiosError.response?.data.message ?? "Something went wrong"
       );
+    } finally {
+      setIsProcessingYoutube(false);
     }
   };
 
@@ -357,7 +368,10 @@ const Content = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-neutral-600 dark:text-neutral-400">Loading content...</p>
+        </div>
       </div>
     );
   }
@@ -746,11 +760,28 @@ const Content = () => {
                   className="bg-white dark:bg-neutral-900"
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Process Video
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isProcessingYoutube}
+              >
+                {isProcessingYoutube ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing Video...
+                  </>
+                ) : (
+                  "Process Video"
+                )}
               </Button>
             </form>
-            {summary && (
+            {isGeneratingSummary && (
+              <div className="mt-6 text-center py-4">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Generating summary...</p>
+              </div>
+            )}
+            {summary && !isGeneratingSummary && (
               <div className="mt-6">
                 <h3 className="font-semibold mb-2">Generated Summary</h3>
                 <ScrollArea className="h-[300px] rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 bg-white/50 dark:bg-neutral-900/50">
@@ -801,13 +832,13 @@ const Content = () => {
 
             <Button
               className="w-full"
-              disabled={disabled || files.length === 0}
+              disabled={disabled || files.length === 0 || isUploading}
               onClick={handleUpload}
             >
-              {disabled ? (
+              {isUploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
+                  Uploading PDF...
                 </>
               ) : (
                 "Upload PDF"
@@ -821,11 +852,26 @@ const Content = () => {
                 onClick={handleGenerate}
                 className="w-full"
                 variant="secondary"
+                disabled={isGeneratingSummary}
               >
-                Generate Summary
+                {isGeneratingSummary ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Summary...
+                  </>
+                ) : (
+                  "Generate Summary"
+                )}
               </Button>
               
-              {summary && (
+              {isGeneratingSummary && (
+                <div className="text-center py-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Processing your PDF and generating summary...</p>
+                </div>
+              )}
+              
+              {summary && !isGeneratingSummary && (
                 <div className="mt-6">
                   <h3 className="font-semibold mb-2">Generated Summary</h3>
                   <ScrollArea className="h-[300px] rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">
