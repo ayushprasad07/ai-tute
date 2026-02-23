@@ -177,11 +177,11 @@ const Content = () => {
     e.preventDefault();
     setIsProcessingYoutube(true);
     try {
-      const transcript = await extractTranscript(sourceUrl);
+      // const transcript = await extractTranscript(sourceUrl);
       await axios.post("/api/content/process-youtube", {
         contentId: params.contentId,
         sourceUrl: sourceUrl,
-        transcript : transcript
+        // transcript : transcript
       });
 
       const summaryRes = await axios.post(

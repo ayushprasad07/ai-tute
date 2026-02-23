@@ -1,12 +1,12 @@
 // import { YoutubeTranscript } from "youtube-transcript";
-import { YoutubeTranscript } from 'youtube-transcript';
+import { fetchTranscript } from 'youtube-transcript-plus';
 
 export async function extractTranscript(videoUrl: string) {
   try {
     if (!videoUrl) throw new Error("Please provide video url");
 
     // const transcript = await YoutubeTranscript.fetchTranscript(videoUrl);
-    const transcript = await YoutubeTranscript.fetchTranscript(videoUrl);
+    const transcript = await fetchTranscript(videoUrl);
     console.log("RAW TRANSCRIPT OBJECT:", transcript);
 
     if (!transcript || transcript.length === 0) {
