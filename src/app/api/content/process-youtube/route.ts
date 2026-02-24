@@ -10,6 +10,7 @@ import cleanText from "@/lib/pdf/cleanText";
 import chunkText from "@/lib/pdf/chunkText";
 import { embedAndStore } from "@/lib/vector/embedAndStore";
 import { protectRoute } from "@/lib/protectRoute";
+import { TranscriptChunk } from "@supadata/js";
 
 
 export async function POST(req:Request) {
