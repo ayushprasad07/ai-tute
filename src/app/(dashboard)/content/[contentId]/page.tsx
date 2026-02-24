@@ -1,12 +1,7 @@
 "use client";
 
 import Chat from "@/components/Chat";
-import { BackgroundRippleEffect } from "@/components/ui/background-ripple-effect";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUpload } from "@/components/ui/file-upload";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ApiResponse } from "@/types/ApiResponse";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
@@ -16,45 +11,28 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { vscDarkPlus, vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
+import { useTheme } from "next-themes";
 import {
-  Download,
-  Copy,
-  Check,
-  Maximize2,
-  Minimize2,
-  FileText,
-  ExternalLink,
-  Loader2,
-  MessageSquare,
-  BookOpen,
-  GraduationCap,
-  Brain,
-  Award,
-  ChevronRight,
-  ChevronLeft,
-  RotateCcw,
+  Download, Copy, Check, FileText, ExternalLink,
+  Loader2, Brain, Award, ChevronRight, ChevronLeft,
+  RotateCcw, Sparkles, GraduationCap, BookOpen, Zap,
+  MessageSquare, AlignLeft, Moon, Sun, X,
 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription,
+  DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Progress } from "@/components/ui/progress";
-import { extractTranscript } from "@/lib/youtube/extractTranscript";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-// Types for quiz
 interface QuizQuestion {
   _id: string;
   question: string;
   options: string[];
-  correctAnswer: string | number; // Can be either string or number
+  correctAnswer: string | number;
   explanation: string;
 }
 
@@ -69,21 +47,21 @@ interface QuizData {
 const Content = () => {
   const params = useParams();
   const contentId = params.contentId as string;
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   const [files, setFiles] = useState<File[]>([]);
   const [disabled, setDisabled] = useState(false);
   const [summary, setSummary] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [copied, setCopied] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  // Loading states
+  const [mobileTab, setMobileTab] = useState<"summary" | "chat">("summary");
+
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isProcessingYoutube, setIsProcessingYoutube] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
-  
-  // Quiz states
+
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
   const [showResults, setShowResults] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -91,127 +69,76 @@ const Content = () => {
 
   const queryClient = useQueryClient();
 
-  // Fetch quiz data using the correct route
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { data: quizData, isLoading: isLoadingQuiz } = useQuery<QuizData>({
     queryKey: ["quiz", contentId],
     queryFn: async () => {
       try {
         const response = await axios.get(`/api/quiz/get-quiz/${contentId}`);
-        if (response.data.success) {
-          return response.data.data;
-        }
+        if (response.data.success) return response.data.data;
         return null;
-      } catch (error) {
-        return null;
-      }
+      } catch { return null; }
     },
     enabled: !!contentId,
     retry: false,
   });
 
-  const handleFileUpload = (files: File[]) => {
-    setFiles(files);
-  };
+  const handleFileUpload = (files: File[]) => setFiles(files);
 
   const handleUpload = async () => {
     if (!files.length) return toast.error("Upload a file first");
-
-    setIsUploading(true);
-    setDisabled(true);
+    setIsUploading(true); setDisabled(true);
     try {
       const formData = new FormData();
       formData.append("pdf", files[0]);
       formData.append("contentId", contentId);
-
       const response = await axios.post("/api/content/pdf-upload", formData);
       toast.success(response.data.message);
-
-      queryClient.invalidateQueries({
-        queryKey: ["content", contentId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["content", contentId] });
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
-      toast.error(
-        axiosError.response?.data.message ?? "Something went wrong"
-      );
-    } finally {
-      setIsUploading(false);
-      setDisabled(false);
-    }
+      toast.error(axiosError.response?.data.message ?? "Something went wrong");
+    } finally { setIsUploading(false); setDisabled(false); }
   };
 
   const handleGenerate = async () => {
     setIsGeneratingSummary(true);
     try {
       await axios.post("/api/content/process-pdf", { contentId });
-
-      const summaryRes = await axios.post(
-        "/api/content/generate-summary",
-        { contentId }
-      );
-
+      const summaryRes = await axios.post("/api/content/generate-summary", { contentId });
       if (summaryRes.data.success) {
         setSummary(summaryRes.data.content);
-
-        queryClient.invalidateQueries({
-          queryKey: ["content", contentId],
-        });
-        
-        toast.success("Summary generated successfully!");
+        queryClient.invalidateQueries({ queryKey: ["content", contentId] });
+        toast.success("Summary generated!");
       }
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
-      toast.error(
-        axiosError.response?.data.message ?? "Something went wrong"
-      );
-    } finally {
-      setIsGeneratingSummary(false);
-    }
-  };
-
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSourceUrl(e.target.value);
+      toast.error(axiosError.response?.data.message ?? "Something went wrong");
+    } finally { setIsGeneratingSummary(false); }
   };
 
   const handleURLSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsProcessingYoutube(true);
+    e.preventDefault(); setIsProcessingYoutube(true);
     try {
-      // const transcript = await extractTranscript(sourceUrl);
-      await axios.post("/api/content/process-youtube", {
-        contentId: params.contentId,
-        sourceUrl: sourceUrl,
-        // transcript : transcript
-      });
-
-      const summaryRes = await axios.post(
-        "/api/content/generate-summary",
-        { contentId }
-      );
-
+      await axios.post("/api/content/process-youtube", { contentId: params.contentId, sourceUrl });
+      const summaryRes = await axios.post("/api/content/generate-summary", { contentId });
       if (summaryRes.data.success) {
         setSummary(summaryRes.data.content);
-
-        queryClient.invalidateQueries({
-          queryKey: ["content", contentId],
-        });
-        
+        queryClient.invalidateQueries({ queryKey: ["content", contentId] });
         toast.success("Video processed successfully!");
       }
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
-      toast.error(
-        axiosError.response?.data.message ?? "Something went wrong"
-      );
-    } finally {
-      setIsProcessingYoutube(false);
-    }
+      toast.error(axiosError.response?.data.message ?? "Something went wrong");
+    } finally { setIsProcessingYoutube(false); }
   };
 
   const handleCopySummary = async () => {
     await navigator.clipboard.writeText(content?.summary || summary);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownloadSummary = () => {
@@ -219,105 +146,50 @@ const Content = () => {
     const file = new Blob([content?.summary || summary], { type: "text/markdown" });
     element.href = URL.createObjectURL(file);
     element.download = `summary-${contentId}.md`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+    document.body.appendChild(element); element.click(); document.body.removeChild(element);
   };
 
-  // Quiz handlers
   const handleGenerateQuiz = async () => {
     setIsGeneratingQuiz(true);
     try {
       const response = await axios.post("/api/quiz", { contentId });
-      
       if (response.data.success) {
-        toast.success("Quiz generated successfully!");
-        
-        queryClient.invalidateQueries({
-          queryKey: ["quiz", contentId],
-        });
-        
-        // Reset quiz state
-        setSelectedAnswers({});
-        setShowResults(false);
-        setCurrentQuestionIndex(0);
-        
-        // Open quiz dialog
+        toast.success("Quiz generated!");
+        queryClient.invalidateQueries({ queryKey: ["quiz", contentId] });
+        setSelectedAnswers({}); setShowResults(false); setCurrentQuestionIndex(0);
         setQuizDialogOpen(true);
       }
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
-      toast.error(
-        axiosError.response?.data.message ?? "Failed to generate quiz"
-      );
-    } finally {
-      setIsGeneratingQuiz(false);
-    }
+      toast.error(axiosError.response?.data.message ?? "Failed to generate quiz");
+    } finally { setIsGeneratingQuiz(false); }
   };
 
-  const handleAnswerSelect = (questionIndex: number, answerIndex: number) => {
-    setSelectedAnswers(prev => ({
-      ...prev,
-      [questionIndex]: answerIndex
-    }));
-  };
+  const handleAnswerSelect = (questionIndex: number, answerIndex: number) =>
+    setSelectedAnswers(prev => ({ ...prev, [questionIndex]: answerIndex }));
 
   const isAnswerCorrect = (question: QuizQuestion, questionIndex: number): boolean => {
-    const selectedAnswer = selectedAnswers[questionIndex];
-    if (selectedAnswer === undefined) return false;
-    
-    // Handle both string and number correctAnswer types
-    const correctAnswerIndex = typeof question.correctAnswer === 'string' 
+    const sel = selectedAnswers[questionIndex];
+    if (sel === undefined) return false;
+    const correctIdx = typeof question.correctAnswer === "string"
       ? question.options.indexOf(question.correctAnswer)
       : question.correctAnswer;
-    
-    return selectedAnswer === correctAnswerIndex;
+    return sel === correctIdx;
   };
 
   const calculateScore = () => {
     if (!quizData?.questions) return 0;
-    let correct = 0;
-    quizData.questions.forEach((q, index) => {
-      if (isAnswerCorrect(q, index)) {
-        correct++;
-      }
-    });
-    return correct;
+    return quizData.questions.filter((q, i) => isAnswerCorrect(q, i)).length;
   };
 
-  const handleSubmitQuiz = () => {
-    setShowResults(true);
-  };
-
-  const handleResetQuiz = () => {
-    setSelectedAnswers({});
-    setShowResults(false);
-    setCurrentQuestionIndex(0);
-  };
-
-  const handleNextQuestion = () => {
-    if (quizData && currentQuestionIndex < quizData.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-    }
-  };
-
-  const handlePrevQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-    }
-  };
+  const allQuestionsAnswered = quizData?.questions
+    ? Object.keys(selectedAnswers).length === quizData.questions.length : false;
 
   const { data: content, isLoading } = useQuery({
     queryKey: ["content", contentId],
     queryFn: async () => {
-      const response = await axios.get(
-        `/api/content/fetch-content-by-id/${contentId}`
-      );
-
-      if (response.data.success) {
-        return response.data.content;
-      }
-
+      const response = await axios.get(`/api/content/fetch-content-by-id/${contentId}`);
+      if (response.data.success) return response.data.content;
       return null;
     },
     enabled: !!contentId,
@@ -330,566 +202,491 @@ const Content = () => {
   const title = content?.title || "Content Studio";
   const hasQuiz = quizData?.questions && quizData.questions.length > 0;
 
-  // Check if all questions are answered
-  const allQuestionsAnswered = quizData?.questions 
-    ? Object.keys(selectedAnswers).length === quizData.questions.length
-    : false;
+  const syntaxTheme = theme === "dark" ? vscDarkPlus : vs;
 
-  // Custom components for markdown rendering
   const MarkdownComponents = {
     code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || "");
       return !inline && match ? (
         <SyntaxHighlighter
-          style={vscDarkPlus}
+          style={syntaxTheme}
           language={match[1]}
           PreTag="div"
-          className="rounded-lg my-4"
+          className="rounded-xl my-4 border border-border"
           {...props}
         >
           {String(children).replace(/\n$/, "")}
         </SyntaxHighlighter>
       ) : (
-        <code className="bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded-md text-sm" {...props}>
+        <code className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-lg text-sm font-mono" {...props}>
           {children}
         </code>
       );
     },
-    h1: ({ children }: any) => <h1 className="text-3xl font-bold mt-6 mb-4">{children}</h1>,
-    h2: ({ children }: any) => <h2 className="text-2xl font-semibold mt-5 mb-3">{children}</h2>,
-    h3: ({ children }: any) => <h3 className="text-xl font-semibold mt-4 mb-2">{children}</h3>,
-    p: ({ children }: any) => <p className="text-base leading-7 mb-4">{children}</p>,
-    ul: ({ children }: any) => <ul className="list-disc pl-6 mb-4 space-y-2">{children}</ul>,
-    ol: ({ children }: any) => <ol className="list-decimal pl-6 mb-4 space-y-2">{children}</ol>,
+    h1: ({ children }: any) => <h1 className="text-2xl font-bold mt-6 mb-3 text-foreground">{children}</h1>,
+    h2: ({ children }: any) => (
+      <h2 className="text-lg font-semibold mt-5 mb-2 flex items-center gap-2 text-foreground">
+        <span className="w-1.5 h-5 bg-blue-500 rounded-full inline-block flex-shrink-0" />
+        {children}
+      </h2>
+    ),
+    h3: ({ children }: any) => <h3 className="text-base font-semibold mt-4 mb-2 text-foreground/90">{children}</h3>,
+    p: ({ children }: any) => <p className="text-sm leading-7 mb-3 text-muted-foreground">{children}</p>,
+    ul: ({ children }: any) => <ul className="space-y-2 mb-3 pl-3">{children}</ul>,
+    li: ({ children }: any) => (
+      <li className="flex items-start gap-2 text-muted-foreground">
+        <span className="mt-2 w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+        <span className="text-sm">{children}</span>
+      </li>
+    ),
     blockquote: ({ children }: any) => (
-      <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-50 dark:bg-blue-950/30 italic">
+      <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-3 bg-blue-500/5 rounded-r-xl text-muted-foreground italic text-sm">
         {children}
       </blockquote>
     ),
   };
 
-  if (isLoading) {
+  // ─── Loading ─────────────────────────────────────────────────────────────────
+  if (isLoading || !mounted) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-neutral-600 dark:text-neutral-400">Loading content...</p>
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="text-center space-y-4">
+          <div className="relative mx-auto w-16 h-16">
+            <div className="absolute inset-0 rounded-full border-2 border-blue-500/20 animate-ping" />
+            <div className="absolute inset-2 rounded-full border-2 border-blue-500/40 animate-ping" style={{ animationDelay: "0.2s" }} />
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400 absolute inset-0 m-auto" />
+          </div>
+          <p className="text-muted-foreground text-xs tracking-widest uppercase">Loading</p>
         </div>
       </div>
     );
   }
 
-  return hasSummary ? (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
-      <div className="container mx-auto p-4 max-w-7xl">
-        {/* Hero Title Section */}
-        <div className="mb-8 text-center">
-          <h1 className="text-5xl md:text-6xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 bg-clip-text text-transparent">
-              {title}
+  // ─── Main view (has summary) ──────────────────────────────────────────────────
+  if (hasSummary) {
+    return (
+      <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
+        {/* ── Top bar ── */}
+        <header className="flex-shrink-0 h-15 border-b border-border bg-background/90 backdrop-blur-xl flex items-center p-6 gap-3 z-20">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center flex-shrink-0">
+              <GraduationCap className="w-3.5 h-3.5 text-white" />
+            </div>
+            <h1 className="text-sm font-semibold text-foreground/90 truncate">{title}</h1>
+            <span className="hidden md:flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full flex-shrink-0">
+              <Sparkles className="w-3 h-3" /> AI Summary
             </span>
-          </h1>
-          
-          <div className="flex items-center justify-center gap-2 text-neutral-600 dark:text-neutral-400">
-            <GraduationCap className="h-4 w-4" />
-            <span className="text-sm">Interactive Learning Experience</span>
-            <BookOpen className="h-4 w-4 ml-2" />
-            <span className="text-sm">AI-Generated Summary</span>
           </div>
-          
-          <div className="mt-4 flex justify-center">
-            <div className="w-24 h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-transparent rounded-full"></div>
-          </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-2 mb-4">
+          {/* Desktop-only actions */}
+          <div className="hidden sm:flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopySummary}
+              className="h-8 px-3 text-xs gap-1.5"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDownloadSummary}
+              className="h-8 px-3 text-xs gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" /> Export
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleGenerateQuiz}
+              disabled={isGeneratingQuiz}
+              className="h-8 px-3 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isGeneratingQuiz ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+              {isGeneratingQuiz ? "Generating..." : "Take Quiz"}
+            </Button>
+          </div>
+
+          {/* Mobile: quiz button only */}
           <Button
-            variant="outline"
             size="sm"
-            onClick={handleCopySummary}
-            className="gap-2"
-          >
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            {copied ? "Copied!" : "Copy"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadSummary}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Download
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            className="gap-2"
-          >
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
-          <Button
             onClick={handleGenerateQuiz}
             disabled={isGeneratingQuiz}
-            className="gap-2 bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500 text-white"
+            className="sm:hidden h-8 px-3 text-xs gap-1.5 bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0"
           >
-            {isGeneratingQuiz ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Brain className="h-4 w-4" />
-            )}
-            {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
+            {isGeneratingQuiz ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+            Quiz
           </Button>
+        </header>
+
+        {/* ── Mobile tab switcher ── */}
+        <div className="lg:hidden flex-shrink-0 flex bg-muted/30 border-b border-border">
+          <button
+            onClick={() => setMobileTab("summary")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-all border-b-2",
+              mobileTab === "summary"
+                ? "text-blue-600 dark:text-blue-400 border-blue-500"
+                : "text-muted-foreground border-transparent hover:text-foreground"
+            )}
+          >
+            <AlignLeft className="w-4 h-4" /> Summary
+          </button>
+          <button
+            onClick={() => setMobileTab("chat")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-all border-b-2",
+              mobileTab === "chat"
+                ? "text-blue-600 dark:text-blue-400 border-blue-500"
+                : "text-muted-foreground border-transparent hover:text-foreground"
+            )}
+          >
+            <MessageSquare className="w-4 h-4" /> AI Tutor
+          </button>
         </div>
 
-        {/* Quiz Dialog */}
+        {/* ── Body ── */}
+        <div className="flex flex-1 min-h-0">
+          {/* LEFT: Summary panel */}
+          <div className={cn(
+            "flex-col overflow-hidden border-r border-border",
+            "w-full lg:w-[55%]",
+            mobileTab === "summary" ? "flex" : "hidden lg:flex"
+          )}>
+            {/* Media preview */}
+            <div className="flex-shrink-0 relative overflow-hidden bg-muted/20" style={{ height: "190px" }}>
+              <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
+
+              {isYoutube ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="relative rounded-xl overflow-hidden shadow-2xl shadow-black/20 border border-border" style={{ width: "260px" }}>
+                    <Image
+                      src={thumbnailUrl}
+                      width={520} height={293}
+                      alt="Video thumbnail"
+                      className="w-full h-auto object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).src = "https://img.youtube.com/vi/default.jpg"; }}
+                    />
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                      <a
+                        href={`https://youtube.com/watch?v=${url}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="w-11 h-11 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-110"
+                      >
+                        <ExternalLink className="w-4 h-4 text-white" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                      <FileText className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <p className="text-xs text-muted-foreground max-w-[200px] truncate text-center">
+                      {content?.fileUrl?.split("/").pop() || "PDF Document"}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Summary label bar */}
+            <div className="flex-shrink-0 flex items-center gap-3 px-6 py-3 border-b border-border bg-background">
+              <div className="w-1 h-5 rounded-full bg-gradient-to-b from-blue-600 to-blue-400 flex-shrink-0" />
+              <h2 className="text-sm font-semibold text-foreground">Summary</h2>
+              <div className="ml-auto flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopySummary}
+                  className="sm:hidden h-8 w-8"
+                  title="Copy"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDownloadSummary}
+                  className="sm:hidden h-8 w-8"
+                  title="Download"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </Button>
+                <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <BookOpen className="w-3.5 h-3.5" /> AI-Generated
+                </span>
+              </div>
+            </div>
+
+            {/* Scrollable summary body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border">
+              <div className="max-w-2xl mx-auto">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>
+                  {content?.summary || summary}
+                </ReactMarkdown>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: Chat panel */}
+          <div className={cn(
+            "overflow-hidden flex-col",
+            "w-full lg:w-[45%]",
+            mobileTab === "chat" ? "flex" : "hidden lg:flex"
+          )}>
+            <Chat contentId={contentId} />
+          </div>
+        </div>
+
+        {/* ── Quiz Dialog ── */}
         <Dialog open={quizDialogOpen} onOpenChange={setQuizDialogOpen}>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-blue-600">
-                <Brain className="h-5 w-5 text-blue-600" />
-                Quiz: {title}
+          <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[88vh] overflow-y-auto bg-background border-border text-foreground rounded-2xl shadow-2xl">
+            <DialogHeader className="pb-4 border-b border-border">
+              <DialogTitle className="flex items-center gap-3 text-foreground text-lg">
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
+                  <Brain className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                Knowledge Quiz
               </DialogTitle>
-              <DialogDescription>
-                Test your knowledge with these AI-generated questions
+              <DialogDescription className="text-muted-foreground text-sm">
+                Test your understanding of <span className="text-blue-600 dark:text-blue-400">{title}</span>
               </DialogDescription>
             </DialogHeader>
 
             {isLoadingQuiz ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
               </div>
             ) : hasQuiz ? (
-              <div className="space-y-6">
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Question {currentQuestionIndex + 1} of {quizData.questions.length}</span>
-                    {showResults && (
-                      <span className="font-semibold text-blue-600">
-                        Score: {calculateScore()}/{quizData.questions.length}
-                      </span>
-                    )}
+              <div className="space-y-5 pt-2">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Question {currentQuestionIndex + 1} of {quizData!.questions.length}</span>
+                    {showResults && <span className="text-blue-600 dark:text-blue-400 font-semibold">Score: {calculateScore()}/{quizData!.questions.length}</span>}
                   </div>
-                  <Progress 
-                    value={((currentQuestionIndex + 1) / quizData.questions.length) * 100} 
-                    className="h-2 [&>div]:bg-blue-600"
-                  />
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-500"
+                      style={{ width: `${((currentQuestionIndex + 1) / quizData!.questions.length) * 100}%` }}
+                    />
+                  </div>
                 </div>
 
-                {/* Current Question */}
                 {!showResults ? (
                   <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900">
-                      <p className="font-medium text-lg mb-4 text-blue-900 dark:text-blue-100">
-                        {quizData.questions[currentQuestionIndex].question}
+                    <div className="p-4 bg-muted/20 border border-border rounded-2xl">
+                      <p className="font-medium text-sm mb-4 text-foreground leading-relaxed">
+                        {quizData!.questions[currentQuestionIndex].question}
                       </p>
-                      
                       <RadioGroup
                         key={`question-${currentQuestionIndex}`}
                         value={selectedAnswers[currentQuestionIndex]?.toString()}
-                        onValueChange={(value) => 
-                          handleAnswerSelect(currentQuestionIndex, parseInt(value))
-                        }
-                        className="space-y-3"
+                        onValueChange={(value) => handleAnswerSelect(currentQuestionIndex, parseInt(value))}
+                        className="space-y-2"
                       >
-                        {quizData.questions[currentQuestionIndex].options.map((option, optIndex) => (
-                          <div key={optIndex} className="flex items-center space-x-2">
+                        {quizData!.questions[currentQuestionIndex].options.map((option, optIndex) => (
+                          <label
+                            key={optIndex}
+                            htmlFor={`q${currentQuestionIndex}-opt${optIndex}`}
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all",
+                              selectedAnswers[currentQuestionIndex] === optIndex
+                                ? "border-blue-500/60 bg-blue-500/10 text-foreground"
+                                : "border-border bg-muted/20 text-muted-foreground hover:border-blue-500/30 hover:bg-muted/30"
+                            )}
+                          >
                             <RadioGroupItem 
                               value={optIndex.toString()} 
-                              id={`q${currentQuestionIndex}-opt${optIndex}`}
-                              className="border-blue-400 text-blue-600 focus:ring-blue-400"
+                              id={`q${currentQuestionIndex}-opt${optIndex}`} 
+                              className="border-blue-500 text-blue-600 dark:text-blue-400 flex-shrink-0" 
                             />
-                            <Label 
-                              htmlFor={`q${currentQuestionIndex}-opt${optIndex}`}
-                              className="text-gray-700 dark:text-gray-300"
-                            >
-                              {option}
-                            </Label>
-                          </div>
+                            <span className="text-sm leading-snug">{option}</span>
+                          </label>
                         ))}
                       </RadioGroup>
                     </div>
 
-                    {/* Navigation Buttons */}
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <Button
-                        variant="outline"
-                        onClick={handlePrevQuestion}
+                        variant="ghost"
+                        onClick={() => setCurrentQuestionIndex(i => i - 1)}
                         disabled={currentQuestionIndex === 0}
-                        className="border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-950"
+                        className="gap-1.5"
                       >
-                        <ChevronLeft className="h-4 w-4 mr-2" />
-                        Previous
+                        <ChevronLeft className="w-4 h-4" /> Prev
                       </Button>
-                      <div className="space-x-2">
-                        {currentQuestionIndex === quizData.questions.length - 1 ? (
-                          <Button 
-                            onClick={handleSubmitQuiz}
-                            disabled={!allQuestionsAnswered}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            Submit Quiz
-                          </Button>
-                        ) : (
-                          <Button 
-                            onClick={handleNextQuestion}
-                            disabled={selectedAnswers[currentQuestionIndex] === undefined}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            Next
-                            <ChevronRight className="h-4 w-4 ml-2" />
-                          </Button>
-                        )}
-                      </div>
+                      {currentQuestionIndex === quizData!.questions.length - 1 ? (
+                        <Button
+                          onClick={() => setShowResults(true)}
+                          disabled={!allQuestionsAnswered}
+                          className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Zap className="w-4 h-4" /> Submit
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => setCurrentQuestionIndex(i => i + 1)}
+                          disabled={selectedAnswers[currentQuestionIndex] === undefined}
+                          className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Next <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ) : (
-                  /* Results View */
-                  <div className="space-y-6">
-                    <div className="text-center p-6 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <Award className="h-12 w-12 mx-auto text-blue-600 mb-2" />
-                      <h3 className="text-2xl font-bold mb-2 text-blue-800 dark:text-blue-200">
-                        Your Score: {calculateScore()}/{quizData.questions.length}
+                  <div className="space-y-4">
+                    <div className="relative overflow-hidden p-6 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 text-center">
+                      <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent" />
+                      <Award className="h-10 w-10 mx-auto text-blue-600 dark:text-blue-400 mb-3 relative" />
+                      <h3 className="text-3xl font-bold text-foreground mb-1 relative">
+                        {calculateScore()}<span className="text-muted-foreground text-xl">/{quizData!.questions.length}</span>
                       </h3>
-                      <p className="text-blue-600 dark:text-blue-400">
-                        {calculateScore() === quizData.questions.length 
-                          ? "Perfect! Excellent work!" 
-                          : calculateScore() >= quizData.questions.length / 2 
-                          ? "Good job! Keep learning!" 
-                          : "Keep practicing! You'll do better next time."}
+                      <p className="text-blue-600 dark:text-blue-400 text-sm relative">
+                        {calculateScore() === quizData!.questions.length
+                          ? "🎉 Perfect Score!"
+                          : calculateScore() >= quizData!.questions.length / 2
+                          ? "Well done! Keep it up."
+                          : "Keep practicing!"}
                       </p>
                     </div>
 
-                    {/* Question Review */}
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-blue-800 dark:text-blue-200">Review Questions:</h4>
-                      {quizData.questions.map((q, qIndex) => {
+                    <div className="space-y-2.5">
+                      {quizData!.questions.map((q, qIndex) => {
                         const isCorrect = isAnswerCorrect(q, qIndex);
-                        const selectedAnswerIndex = selectedAnswers[qIndex];
-                        const correctAnswerIndex = typeof q.correctAnswer === 'string'
-                          ? q.options.indexOf(q.correctAnswer)
-                          : q.correctAnswer;
-                        
+                        const correctIdx = typeof q.correctAnswer === "string"
+                          ? q.options.indexOf(q.correctAnswer) : q.correctAnswer;
                         return (
-                          <Card key={qIndex} className={`border-l-4 ${
-                            isCorrect ? "border-l-green-500" : "border-l-red-500"
-                          }`}>
-                            <CardContent className="p-4">
-                              <p className="font-medium mb-2 text-blue-900 dark:text-blue-100">{qIndex + 1}. {q.question}</p>
-                              <p className="text-sm mb-1">
-                                Your answer: {selectedAnswerIndex !== undefined ? q.options[selectedAnswerIndex] : "Not answered"}
-                                {isCorrect ? " ✅" : " ❌"}
-                              </p>
-                              {!isCorrect && (
-                                <p className="text-sm text-blue-600 dark:text-blue-400 mb-2">
-                                  Correct answer: {q.options[correctAnswerIndex]}
-                                </p>
-                              )}
-                              <p className="text-sm text-muted-foreground mt-2 border-t border-blue-100 dark:border-blue-800 pt-2">
-                                {q.explanation}
-                              </p>
-                            </CardContent>
-                          </Card>
+                          <div key={qIndex} className={cn(
+                            "p-4 rounded-xl border",
+                            isCorrect ? "border-green-500/20 bg-green-500/5" : "border-red-500/20 bg-red-500/5"
+                          )}>
+                            <p className="text-sm font-medium text-foreground mb-2">{qIndex + 1}. {q.question}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Your answer: <span className={isCorrect ? "text-green-500" : "text-red-500"}>
+                                {selectedAnswers[qIndex] !== undefined ? q.options[selectedAnswers[qIndex]] : "—"}
+                              </span>
+                            </p>
+                            {!isCorrect && <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Correct: {q.options[correctIdx]}</p>}
+                            <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">{q.explanation}</p>
+                          </div>
                         );
                       })}
                     </div>
 
-                    <Button 
-                      onClick={handleResetQuiz} 
+                    <Button
+                      onClick={() => { setSelectedAnswers({}); setShowResults(false); setCurrentQuestionIndex(0); }}
                       className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      <RotateCcw className="h-4 w-4" />
-                      Retake Quiz
+                      <RotateCcw className="w-4 h-4" /> Retake Quiz
                     </Button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No quiz available for this content.</p>
-                <Button 
-                  onClick={handleGenerateQuiz} 
-                  disabled={isGeneratingQuiz}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {isGeneratingQuiz ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Brain className="mr-2 h-4 w-4" />
-                      Generate Quiz
-                    </>
-                  )}
+              <div className="text-center py-10">
+                <p className="text-muted-foreground text-sm mb-4">No quiz available yet.</p>
+                <Button onClick={handleGenerateQuiz} disabled={isGeneratingQuiz} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Generate Quiz
                 </Button>
               </div>
             )}
           </DialogContent>
         </Dialog>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Summary */}
-          <div className="space-y-6">
-            {/* Media Preview */}
-            <Card className="relative overflow-hidden bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm border-neutral-200 dark:border-neutral-800">
-              <div className="aspect-video relative flex items-center justify-center p-6">
-                <BackgroundRippleEffect />
-                {isYoutube ? (
-                  <div className="relative z-10 w-full max-w-2xl">
-                    <Card className="overflow-hidden shadow-xl bg-white dark:bg-neutral-900">
-                      <Image
-                        src={thumbnailUrl}
-                        width={1280}
-                        height={720}
-                        alt="Video thumbnail"
-                        className="w-full h-auto"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "https://img.youtube.com/vi/default.jpg";
-                        }}
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <a
-                          href={`https://youtube.com/watch?v=${url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-red-600 text-white p-4 rounded-full hover:bg-red-700 transition-colors shadow-lg"
-                        >
-                          <ExternalLink className="h-6 w-6" />
-                        </a>
-                      </div>
-                    </Card>
-                  </div>
-                ) : (
-                  <Card className="shadow-lg border p-8 z-10 bg-white dark:bg-neutral-900">
-                    <FileText className="h-16 w-16 text-blue-600 mx-auto mb-4" />
-                    <p className="text-sm text-muted-foreground text-center">
-                      {content?.fileUrl?.split("/").pop() || "PDF Document"}
-                    </p>
-                  </Card>
-                )}
-              </div>
-            </Card>
-
-            {/* Summary Content */}
-            <Card className={`border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm ${
-              isFullscreen ? "fixed inset-4 z-50 overflow-auto" : ""
-            }`}>
-              <CardHeader>
-                <CardTitle>Summary</CardTitle>
-                <CardDescription>
-                  AI-generated summary of your content
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className={isFullscreen ? "h-[calc(100vh-12rem)]" : "h-[400px]"}>
-                  <div className="prose prose-neutral dark:prose-invert max-w-none">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={MarkdownComponents}
-                    >
-                      {content?.summary || summary}
-                    </ReactMarkdown>
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Chat */}
-          <div className="lg:sticky lg:top-4 h-fit">
-            <Card className="border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <MessageSquare className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <CardTitle>AI Tutor Chat</CardTitle>
-                </div>
-                <CardDescription>
-                  Ask questions about the content and get instant answers
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-4">
-                <Chat contentId={contentId} />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
       </div>
-    </div>
-  ) : isYoutube ? (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
-      <div className="container mx-auto p-4 max-w-2xl">
-        {/* Title Section */}
+    );
+  }
+
+  // ─── Upload / Input screens ───────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[300px] bg-blue-500/5 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-red-600 to-red-400 bg-clip-text text-transparent">
-              {title}
-            </span>
-          </h1>
-          
-          <p className="text-neutral-600 dark:text-neutral-400 max-w-lg mx-auto">
-            Transform your YouTube video into an interactive learning experience with AI-powered summaries
-          </p>
-          
-          <div className="mt-4 flex justify-center">
-            <div className="w-24 h-1 bg-gradient-to-r from-red-600 via-red-400 to-transparent rounded-full"></div>
+          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs px-3 py-1.5 rounded-full mb-5">
+            <Sparkles className="w-3.5 h-3.5" /> Powered by AI
           </div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{title}</h1>
+          <p className="text-muted-foreground text-sm max-w-xs mx-auto leading-relaxed">
+            {isYoutube
+              ? "Paste a YouTube link to generate a smart summary and start an AI tutoring session."
+              : "Upload your PDF and let AI create a comprehensive learning experience."}
+          </p>
         </div>
 
-        <Card className="bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm border-neutral-200 dark:border-neutral-800">
-          <CardHeader>
-            <CardTitle>Add YouTube Video</CardTitle>
-            <CardDescription>
-              Enter the YouTube URL to generate a summary and start chatting
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="bg-muted/20 border border-border rounded-2xl p-6 space-y-4 backdrop-blur-sm">
+          {isYoutube ? (
             <form onSubmit={handleURLSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="sourceUrl">YouTube URL</Label>
-                <Input
-                  id="sourceUrl"
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">YouTube URL</label>
+                <input
+                  type="url"
                   placeholder="https://youtube.com/watch?v=..."
                   value={sourceUrl}
-                  onChange={handleUrlChange}
+                  onChange={(e) => setSourceUrl(e.target.value)}
                   required
-                  className="bg-white dark:bg-neutral-900"
+                  className="w-full bg-background border border-border text-foreground placeholder:text-muted-foreground/50 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 transition-all"
                 />
               </div>
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={isProcessingYoutube}
-              >
-                {isProcessingYoutube ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing Video...
-                  </>
-                ) : (
-                  "Process Video"
-                )}
+              <Button type="submit" disabled={isProcessingYoutube} className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                {isProcessingYoutube ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : <><Zap className="w-4 h-4" /> Process Video</>}
               </Button>
             </form>
-            {isGeneratingSummary && (
-              <div className="mt-6 text-center py-4">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Generating summary...</p>
+          ) : (
+            <>
+              <div className="border-2 border-dashed border-border rounded-xl p-5 hover:border-blue-500/30 transition-colors">
+                <FileUpload onChange={handleFileUpload} />
               </div>
-            )}
-            {summary && !isGeneratingSummary && (
-              <div className="mt-6">
-                <h3 className="font-semibold mb-2">Generated Summary</h3>
-                <ScrollArea className="h-[300px] rounded-lg border border-neutral-200 dark:border-neutral-800 p-4 bg-white/50 dark:bg-neutral-900/50">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={MarkdownComponents}
-                  >
-                    {summary}
-                  </ReactMarkdown>
-                </ScrollArea>
+              <Button 
+                onClick={handleUpload} 
+                disabled={disabled || files.length === 0 || isUploading}
+                variant="outline"
+                className="w-full gap-2"
+              >
+                {isUploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</> : "Upload PDF"}
+              </Button>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+                <div className="relative flex justify-center"><span className="px-3 bg-background text-muted-foreground text-xs">then</span></div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  ) : (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-neutral-50 to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
-      <div className="container mx-auto p-4 max-w-2xl">
-        {/* Title Section */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 bg-clip-text text-transparent">
-              {title}
-            </span>
-          </h1>
-          
-          <p className="text-neutral-600 dark:text-neutral-400 max-w-lg mx-auto">
-            Upload your PDF and let AI create comprehensive summaries for enhanced learning
-          </p>
-          
-          <div className="mt-4 flex justify-center">
-            <div className="w-24 h-1 bg-gradient-to-r from-blue-600 via-blue-400 to-transparent rounded-full"></div>
-          </div>
+              <Button onClick={handleGenerate} disabled={isGeneratingSummary} className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                {isGeneratingSummary ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Sparkles className="w-4 h-4" /> Generate Summary</>}
+              </Button>
+            </>
+          )}
         </div>
 
-        <Card className="bg-white/50 dark:bg-neutral-900/50 backdrop-blur-sm border-neutral-200 dark:border-neutral-800">
-          <CardHeader>
-            <CardTitle>Upload PDF</CardTitle>
-            <CardDescription>
-              Upload a PDF document to generate a summary and start chatting
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-lg p-6 bg-white/50 dark:bg-neutral-900/50">
-              <FileUpload onChange={handleFileUpload} />
+        <div className="mt-6 grid grid-cols-3 gap-2.5">
+          {[
+            { icon: BookOpen, label: "Smart Summary" },
+            { icon: Brain, label: "AI Quiz" },
+            { icon: GraduationCap, label: "Tutor Chat" },
+          ].map(({ icon: Icon, label }) => (
+            <div key={label} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/20 border border-border">
+              <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span className="text-xs text-muted-foreground">{label}</span>
             </div>
+          ))}
+        </div>
 
-            <Button
-              className="w-full"
-              disabled={disabled || files.length === 0 || isUploading}
-              onClick={handleUpload}
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading PDF...
-                </>
-              ) : (
-                "Upload PDF"
-              )}
-            </Button>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <Button
-                onClick={handleGenerate}
-                className="w-full"
-                variant="secondary"
-                disabled={isGeneratingSummary}
-              >
-                {isGeneratingSummary ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating Summary...
-                  </>
-                ) : (
-                  "Generate Summary"
-                )}
-              </Button>
-              
-              {isGeneratingSummary && (
-                <div className="text-center py-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Processing your PDF and generating summary...</p>
-                </div>
-              )}
-              
-              {summary && !isGeneratingSummary && (
-                <div className="mt-6">
-                  <h3 className="font-semibold mb-2">Generated Summary</h3>
-                  <ScrollArea className="h-[300px] rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={MarkdownComponents}
-                    >
-                      {summary}
-                    </ReactMarkdown>
-                  </ScrollArea>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Theme toggle for upload screen */}
+        <div className="absolute top-4 right-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
     </div>
   );

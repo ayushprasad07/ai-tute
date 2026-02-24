@@ -24,7 +24,7 @@ export async function generateQuizFromContext(context: string) {
               text: `
                 You are an AI tutor.
 
-                Generate exactly 5 quiz questions based STRICTLY on the CONTEXT below.
+                Generate exactly 5 quiz questions based STRICTLY on the CONTEXT below and give it only in english.
 
                 CRITICAL RULES:
                 - Use ONLY facts from the context
