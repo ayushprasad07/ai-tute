@@ -1,47 +1,129 @@
-import mongoose, { Schema} from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import User from "./User";
 
-interface IContent{
-    userId : mongoose.Schema.Types.ObjectId;
-    type : "youtube" | "pdf";
-    title : String;
-    sourceUrl ?: String;
-    content ?: String;
-    status : string;
-    createdAt : Date;
-    updatedAt : Date;
+interface RepoNode {
+  id: string;
+  label: string;
 }
 
-const ContentSchema = new Schema<IContent>({
-    userId : {
-        type : Schema.Types.ObjectId,
-        ref : User,
-        required : true
-    },
-    type : {
-        type : String,
-        enum : ["youtube", "pdf"],
-        required : true
-    },
-    title : {
-        type : String,
-        required : true
-    },
-    sourceUrl : {
-        type : String,
-    },
-    content : {
-        type : String,
-    },
-    status : {
-        type : String,
-        enum : ["processing","ready","failed"],
-        default : "processing"
-    }
-}, {
-    timestamps : true
-});
+interface RepoEdge {
+  source: string;
+  target: string;
+}
 
-const Content = mongoose.models.Content || mongoose.model('Content',ContentSchema);
+interface RepoFile {
+  path: string;
+  size?: number;
+  type?: string;
+}
 
-export default Content
+interface RepoGraph {
+  nodes: RepoNode[];
+  edges: RepoEdge[];
+}
+
+export interface IContent {
+  userId: mongoose.Schema.Types.ObjectId;
+
+  type: "youtube" | "pdf" | "github";
+
+  title: string;
+
+  sourceUrl?: string;
+
+  content?: string;
+
+  status: "processing" | "ready" | "failed";
+
+  repoStructure?: any;
+
+  repoFiles?: RepoFile[];
+
+  repoGraph?: RepoGraph;
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const ContentSchema = new Schema<IContent>(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: User,
+      required: true,
+    },
+
+    type: {
+      type: String,
+      enum: ["youtube", "pdf", "github"],
+      required: true,
+    },
+
+    title: {
+      type: String,
+      required: true,
+    },
+
+    sourceUrl: {
+      type: String,
+      default: null,
+    },
+
+    content: {
+      type: String,
+      default: null,
+    },
+
+    status: {
+      type: String,
+      enum: ["processing", "ready", "failed"],
+      default: "processing",
+    },
+
+    repoStructure: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+
+    repoFiles: {
+      type: [
+        {
+          path: { type: String },
+          size: { type: Number },
+          type: { type: String },
+        },
+      ],
+      default: [],
+    },
+
+    repoGraph: {
+      type: {
+        nodes: [
+          {
+            id: { type: String },
+            label: { type: String },
+          },
+        ],
+        edges: [
+          {
+            source: { type: String },
+            target: { type: String },
+          },
+        ],
+      },
+      default: {
+        nodes: [],
+        edges: [],
+      },
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const Content =
+  mongoose.models.Content ||
+  mongoose.model<IContent>("Content", ContentSchema);
+
+export default Content;

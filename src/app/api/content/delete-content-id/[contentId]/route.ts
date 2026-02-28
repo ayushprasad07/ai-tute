@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import { getServerSession } from "next-auth";
 import { supabase } from "@/lib/supabase";
 import { protectRoute } from "@/lib/protectRoute";
+import Chat from "@/models/Chat";
 
 export async function DELETE(
   req: Request,
@@ -77,6 +78,11 @@ export async function DELETE(
     // ✅ Delete MongoDB document
     await Content.deleteOne({
       _id: new mongoose.Types.ObjectId(contentId),
+    });
+
+    // ✅ Delete MongoDB chat document
+    await Chat.deleteOne({
+      contentId: new mongoose.Types.ObjectId(contentId),
     });
 
     return Response.json(
