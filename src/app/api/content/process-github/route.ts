@@ -7,6 +7,9 @@ import { fetchUser } from "@/lib/github/fetchUser";
 import { extractRepoText } from "@/lib/github/extractRepoText";
 import chunkText from "@/lib/pdf/chunkText";
 import { embedAndStore } from "@/lib/vector/embedAndStore";
+import { fetchRepo } from "@/lib/github/fetchRepoTree";
+import { fetchFileContent } from "@/lib/github/fetchFileContent";
+import { buildRepoGraph } from "@/lib/github/buildRepoGraph";
 
 // /api/content/process-github
 
@@ -55,6 +58,33 @@ export async function POST(req : Request){
 
         const {owner, repo} = await fetchUser(sourceUrl);
 
+        const files = await fetchRepo(owner, repo);
+
+        const fullFile = [];
+
+        let combinedText = "";
+
+        for (const file of files.slice(0,40)){
+            const fileContent = await fetchFileContent(
+                owner,
+                repo,
+                file.path
+            );
+
+            fullFile.push(
+                {
+                    path : file.path,
+                    content : fileContent,
+                    size : file.size
+                }
+            )
+
+            combinedText += `FILE: ${file.path}\n`;
+            combinedText += fileContent + "\n\n";
+        }
+
+        const graph = await buildRepoGraph(fullFile);
+
         const repoText = await extractRepoText(owner, repo);
 
         const chunk = chunkText(repoText, 500, 100);
@@ -62,11 +92,19 @@ export async function POST(req : Request){
         await embedAndStore(chunk, contentId);
 
         await Content.updateOne(
-            {_id : new mongoose.Types.ObjectId(contentId)},
-            {$set : {
-                status : "ready",
-                sourceUrl
-            }}
+            { _id: contentId },
+            {
+                $set: {
+                repoGraph: graph,
+                repoFiles: fullFile.map(f => ({
+                    path: f.path,
+                    size: f.size,
+                    type: "file"
+                })),
+                sourceUrl: sourceUrl,
+                status: "ready"
+                }
+            }
         );
 
         return Response.json({

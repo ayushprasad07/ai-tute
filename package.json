@@ -53,6 +53,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "compute-cosine-similarity": "^1.1.0",
+    "dagre": "^0.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.6.0",
@@ -77,6 +78,7 @@
     "react-resizable-panels": "^4.6.0",
     "react-router-dom": "^7.13.0",
     "react-syntax-highlighter": "^16.1.0",
+    "reactflow": "^11.11.4",
     "recharts": "^3.7.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
@@ -91,6 +93,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/dagre": "^0.7.54",
     "@types/formidable": "^3.4.6",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^20",

@@ -104,6 +104,8 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
 import { Separator } from "@/components/ui/separator"
+// Add Github icon import
+import { Github } from "lucide-react";
 
 interface ContentOverview {
   totalContents: number
@@ -158,10 +160,14 @@ const STATUS_CONFIG = {
   default: { icon: Clock, color: 'text-slate-500', bg: 'bg-slate-500/10', border: 'border-slate-500/20', label: 'Pending', spin: false }
 }
 
+// Add to your TYPE_CONFIG object
 const TYPE_CONFIG = {
   pdf: { icon: FileText, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'PDF' },
-  youtube: { icon: Youtube, color: 'text-rose-500', bg: 'bg-rose-500/10', label: 'YouTube' }
+  youtube: { icon: Youtube, color: 'text-rose-500', bg: 'bg-rose-500/10', label: 'YouTube' },
+  github: { icon: Github, color: 'text-purple-500', bg: 'bg-purple-500/10', label: 'GitHub' }
 }
+
+
 
 // Custom tooltip for charts
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -593,10 +599,12 @@ const Dashboard = () => {
                     </Field>
                     <Field>
                       <Label>Content Type</Label>
+                       // In your Dashboard component, update the RadioGroup section:
+
                       <RadioGroup 
                         value={credentials.type}
                         onValueChange={(value) => handleChange("type", value)}
-                        className="grid grid-cols-2 gap-4"
+                        className="grid grid-cols-3 gap-4"
                       >
                         <div>
                           <RadioGroupItem value="pdf" id="pdf" className="peer sr-only" />
@@ -605,7 +613,7 @@ const Dashboard = () => {
                             className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-white dark:bg-neutral-900 p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800 peer-data-[state=checked]:border-blue-500 [&:has([data-state=checked])]:border-blue-500 cursor-pointer transition-all"
                           >
                             <FileText className="mb-2 h-6 w-6 text-blue-500" />
-                            <span className="font-medium">PDF Document</span>
+                            <span className="font-medium">PDF</span>
                           </Label>
                         </div>
                         <div>
@@ -615,7 +623,19 @@ const Dashboard = () => {
                             className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-white dark:bg-neutral-900 p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800 peer-data-[state=checked]:border-rose-500 [&:has([data-state=checked])]:border-rose-500 cursor-pointer transition-all"
                           >
                             <Youtube className="mb-2 h-6 w-6 text-rose-500" />
-                            <span className="font-medium">YouTube Video</span>
+                            <span className="font-medium">YouTube</span>
+                          </Label>
+                        </div>
+                        <div>
+                          <RadioGroupItem value="github" id="github" className="peer sr-only" />
+                          <Label
+                            htmlFor="github"
+                            className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-white dark:bg-neutral-900 p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800 peer-data-[state=checked]:border-purple-500 [&:has([data-state=checked])]:border-purple-500 cursor-pointer transition-all"
+                          >
+                            <svg className="mb-2 h-6 w-6 text-purple-500" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02.8-.22 1.65-.33 2.5-.33.85 0 1.7.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
+                            </svg>
+                            <span className="font-medium">GitHub</span>
                           </Label>
                         </div>
                       </RadioGroup>

@@ -1,3 +1,5 @@
+// app/content/[contentId]/page.tsx
+
 "use client";
 
 import Chat from "@/components/Chat";
@@ -18,7 +20,8 @@ import {
   Download, Copy, Check, FileText, ExternalLink,
   Loader2, Brain, Award, ChevronRight, ChevronLeft,
   RotateCcw, Sparkles, GraduationCap, BookOpen, Zap,
-  MessageSquare, AlignLeft, Moon, Sun, X,
+  MessageSquare, AlignLeft, Moon, Sun, Github, GitBranch,
+  Code, FolderTree, Star, Eye, GitFork
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription,
@@ -27,6 +30,9 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import RepoGraph from "@/components/RepoGraph";
 
 interface QuizQuestion {
   _id: string;
@@ -44,6 +50,17 @@ interface QuizData {
   updatedAt: string;
 }
 
+interface RepoFile {
+  path: string;
+  size: number;
+  type: string;
+}
+
+interface RepoGraphData {
+  nodes: { id: string; label: string; folder: string }[];
+  edges: { source: string; target: string }[];
+}
+
 const Content = () => {
   const params = useParams();
   const contentId = params.contentId as string;
@@ -54,12 +71,14 @@ const Content = () => {
   const [disabled, setDisabled] = useState(false);
   const [summary, setSummary] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
+  const [repoUrl, setRepoUrl] = useState("");
   const [copied, setCopied] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"summary" | "chat">("summary");
+  const [mobileTab, setMobileTab] = useState<"summary" | "chat" | "graph">("summary");
 
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isProcessingYoutube, setIsProcessingYoutube] = useState(false);
+  const [isProcessingGithub, setIsProcessingGithub] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
   const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
@@ -86,6 +105,17 @@ const Content = () => {
     retry: false,
   });
 
+  const { data: content, isLoading } = useQuery({
+    queryKey: ["content", contentId],
+    queryFn: async () => {
+      const response = await axios.get(`/api/content/fetch-content-by-id/${contentId}`);
+      if (response.data.success) return response.data.content;
+      return null;
+    },
+    enabled: !!contentId,
+  });
+
+  
   const handleFileUpload = (files: File[]) => setFiles(files);
 
   const handleUpload = async () => {
@@ -134,6 +164,29 @@ const Content = () => {
       const axiosError = error as AxiosError<ApiResponse>;
       toast.error(axiosError.response?.data.message ?? "Something went wrong");
     } finally { setIsProcessingYoutube(false); }
+  };
+
+  const handleGithubSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsProcessingGithub(true);
+    try {
+      // First process the GitHub repo
+      await axios.post("/api/content/process-github", { 
+        contentId, 
+        sourceUrl: repoUrl 
+      });
+      
+      // Then generate summary
+      const summaryRes = await axios.post("/api/content/generate-summary", { contentId });
+      if (summaryRes.data.success) {
+        setSummary(summaryRes.data.content);
+        queryClient.invalidateQueries({ queryKey: ["content", contentId] });
+        toast.success("Repository processed successfully!");
+      }
+    } catch (error) {
+      const axiosError = error as AxiosError<ApiResponse>;
+      toast.error(axiosError.response?.data.message ?? "Something went wrong");
+    } finally { setIsProcessingGithub(false); }
   };
 
   const handleCopySummary = async () => {
@@ -185,22 +238,14 @@ const Content = () => {
   const allQuestionsAnswered = quizData?.questions
     ? Object.keys(selectedAnswers).length === quizData.questions.length : false;
 
-  const { data: content, isLoading } = useQuery({
-    queryKey: ["content", contentId],
-    queryFn: async () => {
-      const response = await axios.get(`/api/content/fetch-content-by-id/${contentId}`);
-      if (response.data.success) return response.data.content;
-      return null;
-    },
-    enabled: !!contentId,
-  });
-
   const isYoutube = content?.type === "youtube";
+  const isGithub = content?.type === "github";
   const hasSummary = !!(content?.summary || summary);
   const url = content?.url;
   const thumbnailUrl = isYoutube ? `https://img.youtube.com/vi/${url}/maxresdefault.jpg` : "";
   const title = content?.title || "Content Studio";
   const hasQuiz = quizData?.questions && quizData.questions.length > 0;
+  const repoGraph = content?.repoGraph as RepoGraphData | undefined;
 
   const syntaxTheme = theme === "dark" ? vscDarkPlus : vs;
 
@@ -246,7 +291,7 @@ const Content = () => {
     ),
   };
 
-  // ─── Loading ─────────────────────────────────────────────────────────────────
+  // Loading state
   if (isLoading || !mounted) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
@@ -262,23 +307,33 @@ const Content = () => {
     );
   }
 
-  // ─── Main view (has summary) ──────────────────────────────────────────────────
+  // Main view with summary
   if (hasSummary) {
     return (
       <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
-        {/* ── Top bar ── */}
+        {/* Top bar */}
         <header className="flex-shrink-0 h-15 border-b border-border bg-background/90 backdrop-blur-xl flex items-center p-6 gap-3 z-20">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center flex-shrink-0">
-              <GraduationCap className="w-3.5 h-3.5 text-white" />
+              {isGithub ? (
+                <Github className="w-3.5 h-3.5 text-white" />
+              ) : (
+                <GraduationCap className="w-3.5 h-3.5 text-white" />
+              )}
             </div>
             <h1 className="text-sm font-semibold text-foreground/90 truncate">{title}</h1>
+            {isGithub && (
+              <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20">
+                <GitBranch className="w-3 h-3 mr-1" />
+                GitHub
+              </Badge>
+            )}
             <span className="hidden md:flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full flex-shrink-0">
               <Sparkles className="w-3 h-3" /> AI Summary
             </span>
           </div>
 
-          {/* Desktop-only actions */}
+          {/* Desktop actions */}
           <div className="hidden sm:flex items-center gap-2">
             <Button
               variant="ghost"
@@ -308,7 +363,7 @@ const Content = () => {
             </Button>
           </div>
 
-          {/* Mobile: quiz button only */}
+          {/* Mobile quiz button */}
           <Button
             size="sm"
             onClick={handleGenerateQuiz}
@@ -320,7 +375,7 @@ const Content = () => {
           </Button>
         </header>
 
-        {/* ── Mobile tab switcher ── */}
+        {/* Mobile tab switcher */}
         <div className="lg:hidden flex-shrink-0 flex bg-muted/30 border-b border-border">
           <button
             onClick={() => setMobileTab("summary")}
@@ -333,6 +388,19 @@ const Content = () => {
           >
             <AlignLeft className="w-4 h-4" /> Summary
           </button>
+          {isGithub && (
+            <button
+              onClick={() => setMobileTab("graph")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-all border-b-2",
+                mobileTab === "graph"
+                  ? "text-purple-600 dark:text-purple-400 border-purple-500"
+                  : "text-muted-foreground border-transparent hover:text-foreground"
+              )}
+            >
+              <GitBranch className="w-4 h-4" /> Repo Graph
+            </button>
+          )}
           <button
             onClick={() => setMobileTab("chat")}
             className={cn(
@@ -346,12 +414,13 @@ const Content = () => {
           </button>
         </div>
 
-        {/* ── Body ── */}
-        <div className="flex flex-1 min-h-0">
-          {/* LEFT: Summary panel */}
+        {/* Body - Three column layout for GitHub, two for others */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* Left panel - Summary for all content types */}
           <div className={cn(
-            "flex-col overflow-hidden border-r border-border",
-            "w-full lg:w-[55%]",
+            "flex-col overflow-hidden border-r border-border transition-all duration-300",
+            isGithub ? "lg:w-[40%]" : "lg:w-[55%]",
+            // Mobile visibility: show only when active, desktop always show
             mobileTab === "summary" ? "flex" : "hidden lg:flex"
           )}>
             {/* Media preview */}
@@ -384,10 +453,16 @@ const Content = () => {
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                      <FileText className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+                      {isGithub ? (
+                        <Github className="w-7 h-7 text-purple-600 dark:text-purple-400" />
+                      ) : (
+                        <FileText className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground max-w-[200px] truncate text-center">
-                      {content?.fileUrl?.split("/").pop() || "PDF Document"}
+                      {isGithub 
+                        ? content?.url?.split("/").slice(-2).join("/") || "GitHub Repository"
+                        : content?.fileUrl?.split("/").pop() || "PDF Document"}
                     </p>
                   </div>
                 </div>
@@ -433,17 +508,59 @@ const Content = () => {
             </div>
           </div>
 
-          {/* RIGHT: Chat panel */}
+          {/* Middle panel - Graph for GitHub */}
+          {isGithub && (
+            <div className={cn(
+              "flex-col overflow-hidden border-r border-border transition-all duration-300",
+              "lg:w-[30%]",
+              // Mobile visibility: show only when active, desktop always show
+              mobileTab === "graph" ? "flex" : "hidden lg:flex"
+            )}>
+              <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-background/50 flex items-center justify-between">
+                <h2 className="text-sm font-semibold flex items-center gap-2">
+                  <GitBranch className="w-4 h-4 text-purple-500" />
+                  Repository Graph
+                </h2>
+                {repoGraph && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs bg-purple-500/10">
+                      {repoGraph.nodes?.length || 0} nodes
+                    </Badge>
+                    <Badge variant="outline" className="text-xs bg-blue-500/10">
+                      {repoGraph.edges?.length || 0} edges
+                    </Badge>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 relative min-h-0 p-2">
+                {repoGraph ? (
+                  <div className="absolute inset-2">
+                    <RepoGraph graph={repoGraph} />
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center space-y-3">
+                      <Loader2 className="h-8 w-8 animate-spin text-purple-500 mx-auto" />
+                      <p className="text-sm text-muted-foreground">Loading graph...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Right panel - Chat */}
           <div className={cn(
-            "overflow-hidden flex-col",
-            "w-full lg:w-[45%]",
+            "overflow-hidden flex-col transition-all duration-300 w-full",
+            isGithub ? "lg:w-[30%]" : "lg:w-[45%]",
+            // Mobile visibility: show only when active, desktop always show
             mobileTab === "chat" ? "flex" : "hidden lg:flex"
           )}>
             <Chat contentId={contentId} />
           </div>
         </div>
 
-        {/* ── Quiz Dialog ── */}
+        {/* Quiz Dialog */}
         <Dialog open={quizDialogOpen} onOpenChange={setQuizDialogOpen}>
           <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[88vh] overflow-y-auto bg-background border-border text-foreground rounded-2xl shadow-2xl">
             <DialogHeader className="pb-4 border-b border-border">
@@ -602,7 +719,7 @@ const Content = () => {
     );
   }
 
-  // ─── Upload / Input screens ───────────────────────────────────────────────────
+  // Upload / Input screens
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="fixed inset-0 pointer-events-none">
@@ -618,6 +735,8 @@ const Content = () => {
           <p className="text-muted-foreground text-sm max-w-xs mx-auto leading-relaxed">
             {isYoutube
               ? "Paste a YouTube link to generate a smart summary and start an AI tutoring session."
+              : isGithub
+              ? "Enter a GitHub repository URL to analyze code structure and generate documentation."
               : "Upload your PDF and let AI create a comprehensive learning experience."}
           </p>
         </div>
@@ -638,6 +757,23 @@ const Content = () => {
               </div>
               <Button type="submit" disabled={isProcessingYoutube} className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white">
                 {isProcessingYoutube ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : <><Zap className="w-4 h-4" /> Process Video</>}
+              </Button>
+            </form>
+          ) : isGithub ? (
+            <form onSubmit={handleGithubSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground font-medium uppercase tracking-wider">GitHub Repository URL</label>
+                <input
+                  type="url"
+                  placeholder="https://github.com/username/repo"
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  required
+                  className="w-full bg-background border border-border text-foreground placeholder:text-muted-foreground/50 rounded-xl px-4 py-3 text-sm outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/10 transition-all"
+                />
+              </div>
+              <Button type="submit" disabled={isProcessingGithub} className="w-full gap-2 bg-purple-600 hover:bg-purple-700 text-white">
+                {isProcessingGithub ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing Repo...</> : <><Code className="w-4 h-4" /> Analyze Repository</>}
               </Button>
             </form>
           ) : (
@@ -668,7 +804,7 @@ const Content = () => {
           {[
             { icon: BookOpen, label: "Smart Summary" },
             { icon: Brain, label: "AI Quiz" },
-            { icon: GraduationCap, label: "Tutor Chat" },
+            { icon: isGithub ? Code : GraduationCap, label: isGithub ? "Code Analysis" : "Tutor Chat" },
           ].map(({ icon: Icon, label }) => (
             <div key={label} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/20 border border-border">
               <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -677,7 +813,7 @@ const Content = () => {
           ))}
         </div>
 
-        {/* Theme toggle for upload screen */}
+        {/* Theme toggle */}
         <div className="absolute top-4 right-4">
           <Button
             variant="ghost"
