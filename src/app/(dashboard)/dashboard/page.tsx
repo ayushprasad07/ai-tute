@@ -599,7 +599,6 @@ const Dashboard = () => {
                     </Field>
                     <Field>
                       <Label>Content Type</Label>
-                       // In your Dashboard component, update the RadioGroup section:
 
                       <RadioGroup 
                         value={credentials.type}
