@@ -345,14 +345,6 @@ const Content = () => {
               {copied ? "Copied" : "Copy"}
             </Button>
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDownloadSummary}
-              className="h-8 px-3 text-xs gap-1.5"
-            >
-              <Download className="w-3.5 h-3.5" /> Export
-            </Button>
-            <Button
               size="sm"
               onClick={handleGenerateQuiz}
               disabled={isGeneratingQuiz}

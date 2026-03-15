@@ -153,15 +153,17 @@ export default function SideBar({ children }: { children: React.ReactNode }) {
                   {contents.map((content) => (
                     <div
                       key={content._id}
-                      className="group relative flex items-center pr-2"
+                      className="group relative flex items-center "
                     >
                       <Link
                         href={`/content/${content._id}`}
                         className={cn(
-                          "flex-1 flex items-center rounded-lg px-3 py-2 text-sm transition-all",
+                          "flex-1 flex items-center rounded-lg py-2 text-sm transition-all",
                           "hover:bg-neutral-200 dark:hover:bg-neutral-700",
-                          open ? "gap-3 justify-start" : "justify-center"
+                          open ? "gap-3 justify-start px-3" : "justify-center"
                         )}
+
+                        onClick={()=>{setOpen(false)}}
                       >
                         <IconFileText className="h-4 w-4 shrink-0 text-neutral-600 dark:text-neutral-300" />
 
